@@ -1,0 +1,129 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String
+  last_name String
+  role      Role
+
+  flags     Flag[]
+  surveys   Survey[]
+  videos    Video[]
+  leads     Lead[]
+
+  questions Question[]       @relation("CreatedQuestions")
+  
+  coachLinks CoachCustomer[] @relation("CustomerSide")
+  customerLinks CoachCustomer[] @relation("CoachSide")
+
+  // Komfortable Zugriffe (virtuell)
+  //coaches  User[] @relation("CoachRelation", through: "CoachCustomer", fields: [], references: [])
+  //customers User[] @relation("CustomerRelation", through: "CoachCustomer", fields: [], references: [])
+
+  createdAt DateTime  @default(now())
+}
+
+model CoachCustomer {
+  id         String   @id @default(uuid())
+
+  coach      User?     @relation("CoachSide", fields: [coachId], references: [id])
+  coachId    String?
+
+  customer   User?     @relation("CustomerSide", fields: [customerId], references: [id])
+  customerId String?
+
+  createdAt  DateTime @default(now())
+
+  @@unique([coachId, customerId]) // jeder Coach–Kunde-Paar nur 1×
+}
+
+model Flag {
+  id        String    @id @default(uuid())
+  user      User      @relation(fields: [userId], references: [id])
+  userId    String
+  reason    String
+  color     FlagColor
+  createdAt DateTime  @default(now())
+}
+
+model Video {
+  id         String   @id @default(uuid())
+  title      String
+  url        String
+  user       User     @relation(fields: [userId], references: [id])
+  userId     String
+  createdAt  DateTime @default(now())
+  archivedAt DateTime?
+}
+
+model Lead {
+  id        String   @id @default(uuid())
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  name      String
+  stage     PipelineStage @relation(fields: [stageId], references: [id])
+  stageId   String
+  closed    Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model Survey {
+  id        String    @id @default(uuid())
+  user      User      @relation(fields: [userId], references: [id])
+  userId    String
+  comment   String?
+  rating    Int?
+  createdAt DateTime  @default(now())
+  questions SurveyQuestion[]
+}
+
+model SurveyQuestion {
+  id         String   @id @default(uuid())
+  survey     Survey   @relation(fields: [surveyId], references: [id])
+  surveyId   String
+  question   Question @relation(fields: [questionId], references: [id])
+  questionId String
+  rating     Int?
+  answer     String
+}
+
+model Question {
+  id                String   @id @default(uuid())
+  text              String
+  createdByCoach    User?    @relation("CreatedQuestions", fields: [createdByCoachId], references: [id])
+  createdByCoachId  String?
+  createdAt         DateTime @default(now())
+  surveyAnswers     SurveyQuestion[]
+}
+
+model PipelineStage {
+  id     String @id @default(uuid())
+  name   String
+  leads  Lead[]
+}
+
+enum FlagColor {
+  YELLOW
+  RED
+}
+
+enum Role {
+  ADMIN
+  COACH
+  CUSTOMER
+}

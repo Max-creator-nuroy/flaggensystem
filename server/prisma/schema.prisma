@@ -1,0 +1,199 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  password     String
+  name         String
+  last_name    String
+  isAffiliate  Boolean?
+  mobileNumber String?
+  role         Role
+
+  dailyChecks DailyCheck[]
+  requiremnt  Requirement[]
+  flags       Flag[]
+  surveys     Survey[]
+  videos      Video[]
+  leads       Lead[]
+
+  questions Question[] @relation("CreatedQuestions")
+
+  coachLinks    CoachCustomer[] @relation("CustomerSide")
+  customerLinks CoachCustomer[] @relation("CoachSide")
+
+  // Komfortable Zugriffe (virtuell)
+  //coaches  User[] @relation("CoachRelation", through: "CoachCustomer", fields: [], references: [])
+  //customers User[] @relation("CustomerRelation", through: "CoachCustomer", fields: [], references: [])
+
+  createdAt DateTime @default(now())
+}
+
+model CoachCustomer {
+  id String @id @default(uuid())
+
+  coach   User?   @relation("CoachSide", fields: [coachId], references: [id])
+  coachId String?
+
+  customer   User?   @relation("CustomerSide", fields: [customerId], references: [id])
+  customerId String?
+
+  createdAt DateTime @default(now())
+
+  @@unique([coachId, customerId]) // jeder Coach–Kunde-Paar nur 1×
+}
+
+model Flag {
+  id        String    @id @default(uuid())
+  user      User      @relation(fields: [userId], references: [id])
+  userId    String
+  color     FlagColor
+  createdAt DateTime  @default(now())
+
+  requirement   Requirement @relation(fields: [requirementId], references: [id])
+  requirementId String
+
+  dailyCheckEntry   DailyCheckEntry @relation(fields: [dailyCheckEntryId], references: [id])
+  dailyCheckEntryId String          @unique // wichtig: 1:1!
+
+  escalatedFrom FlagEscalationLink[] @relation("ToFlag")
+  escalatedTo   FlagEscalationLink[] @relation("FromFlag")
+}
+
+model FlagEscalationLink {
+  id         String @id @default(uuid())
+  fromFlag   Flag   @relation("FromFlag", fields: [fromFlagId], references: [id])
+  fromFlagId String
+  toFlag     Flag   @relation("ToFlag", fields: [toFlagId], references: [id])
+  toFlagId   String
+}
+
+model Video {
+  id         String      @id @default(uuid())
+  title      String?
+  url        String
+  user       User        @relation(fields: [userId], references: [id])
+  userId     String
+  createdAt  DateTime    @default(now())
+  archivedAt DateTime?
+  DailyCheck DailyCheck?
+}
+
+model Lead {
+  id           String        @id @default(uuid())
+  user         User          @relation(fields: [userId], references: [id])
+  userId       String
+  name         String
+  mobileNumber String        @unique
+  stage        PipelineStage @relation(fields: [stageId], references: [id])
+  stageId      String
+  closed       Boolean       @default(false)
+  createdAt    DateTime      @default(now())
+}
+
+model Survey {
+  id          String           @id @default(uuid())
+  user        User             @relation(fields: [userId], references: [id])
+  userId      String
+  comment     String?
+  rating      Int?
+  createdAt   DateTime         @default(now())
+  submittedAt DateTime? // 🆕 Zeitpunkt der Beantwortung
+  questions   SurveyQuestion[]
+}
+
+model SurveyQuestion {
+  id         String   @id @default(uuid())
+  survey     Survey   @relation(fields: [surveyId], references: [id])
+  surveyId   String
+  question   Question @relation(fields: [questionId], references: [id])
+  questionId String
+  rating     Int?
+  answer     String
+}
+
+model Question {
+  id               String           @id @default(uuid())
+  text             String
+  createdByCoach   User?            @relation("CreatedQuestions", fields: [createdByCoachId], references: [id])
+  createdByCoachId String?
+  createdAt        DateTime         @default(now())
+  isDeleted        Boolean          @default(false) // 👈 das neue Feld
+  surveyAnswers    SurveyQuestion[]
+}
+
+model PipelineStage {
+  id    String @id @default(uuid())
+  name  String
+  leads Lead[]
+}
+
+model Requirement {
+  id          String   @id @default(uuid())
+  coach       User     @relation(fields: [coachId], references: [id])
+  coachId     String
+  title       String
+  description String?
+  createdAt   DateTime @default(now())
+  isDeleted   Boolean  @default(false) // 👈 das neue Feld
+
+  entries DailyCheckEntry[] // ← alle täglichen Prüfungen
+  Flag    Flag[] // ← alle Flaggen, die dieses Kriterium verletzt haben
+}
+
+model DailyCheck {
+  id     String @id @default(uuid())
+  user   User   @relation(fields: [userId], references: [id])
+  userId String
+
+  video   Video  @relation(fields: [videoId], references: [id])
+  videoId String @unique
+
+  date    DateTime
+  entries DailyCheckEntry[]
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, date]) // <--- WICHTIG!
+}
+
+model DailyCheckEntry {
+  id           String     @id @default(uuid())
+  dailyCheck   DailyCheck @relation(fields: [dailyCheckId], references: [id])
+  dailyCheckId String
+
+  requirement   Requirement @relation(fields: [requirementId], references: [id])
+  requirementId String
+
+  fulfilled Boolean // ✅ erfüllt oder ❌ nicht erfüllt
+
+  note String? // z. B. kurze Begründung
+
+  createdAt DateTime @default(now())
+  Flag      Flag?
+}
+
+enum FlagColor {
+  YELLOW
+  RED
+  GREEN
+}
+
+enum Role {
+  ADMIN
+  COACH
+  CUSTOMER
+}
