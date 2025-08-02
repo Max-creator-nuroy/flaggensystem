@@ -118,7 +118,7 @@ export const analyzeVideoWithGemini = (video: any, criteriaList: any) => {
         }
 
         const parsed = JSON.parse(match[1]);
-
+        console.log(parsed)
         resolve(parsed); // ← Promise korrekt auflösen
       } catch (jsonErr) {
         console.error("❌ Fehler beim Parsen der Gemini-Antwort:", jsonErr);

@@ -14,10 +14,12 @@ import {
   VStack,
   HStack,
   Spinner,
+  Dialog,
+  Card,
+  Portal,
+  CardHeader,
 } from "@chakra-ui/react";
-import {
-  useColorModeValue,
-} from "@/components/ui/color-mode"
+import { useColorModeValue } from "@/components/ui/color-mode";
 import { BsFlag } from "react-icons/bs";
 import getUserFromToken from "@/services/getTokenFromLokal";
 
@@ -34,10 +36,13 @@ export default function FlagList() {
   const [userData, setUserData] = useState<any>(null);
   const [flags, setFlags] = useState<any[]>([]);
   const [selectedFlag, setSelectedFlag] = useState<any>(null);
-  const [colorFilter, setColorFilter] = useState<"ALL" | "RED" | "YELLOW" | "GREEN">("ALL");
+  const [colorFilter, setColorFilter] = useState<
+    "ALL" | "RED" | "YELLOW" | "GREEN"
+  >("ALL");
   const [search, setSearch] = useState("");
 
-  const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+  const token =
+    typeof window !== "undefined" ? localStorage.getItem("token") : null;
   const user = token ? getUserFromToken(token) : null;
 
   useEffect(() => {
@@ -53,7 +58,11 @@ export default function FlagList() {
       .then((req) => req.json())
       .then((data) => {
         setUserData(data);
-        setFlags((data.flags || []).sort((a: any, b: any) => +new Date(b.createdAt) - +new Date(a.createdAt)));
+        setFlags(
+          (data.flags || []).sort(
+            (a: any, b: any) => +new Date(b.createdAt) - +new Date(a.createdAt)
+          )
+        );
       })
       .finally(() => setLoading(false));
   }, [token, user?.id]);
@@ -67,9 +76,13 @@ export default function FlagList() {
     return flags.filter((f: any) => {
       if (f.id === selectedFlag.id) return false;
       return (
-        f.escalatedFrom?.some((link: any) => link.fromFlagId === selectedFlag.id) ||
+        f.escalatedFrom?.some(
+          (link: any) => link.fromFlagId === selectedFlag.id
+        ) ||
         f.escalatedTo?.some((link: any) => link.toFlagId === selectedFlag.id) ||
-        selectedFlag.escalatedFrom?.some((link: any) => link.fromFlagId === f.id) ||
+        selectedFlag.escalatedFrom?.some(
+          (link: any) => link.fromFlagId === f.id
+        ) ||
         selectedFlag.escalatedTo?.some((link: any) => link.toFlagId === f.id)
       );
     });
@@ -85,15 +98,18 @@ export default function FlagList() {
       );
   }, [flags, colorFilter, search]);
 
-  const counts = useMemo(
-    () => ({
-      total: flags.length,
-      red: flags.filter((f) => f.color === "RED").length,
-      yellow: flags.filter((f) => f.color === "YELLOW").length,
-      green: flags.filter((f) => f.color === "GREEN").length,
-    }),
-    [flags]
-  );
+  const counts = useMemo(() => {
+    const unlinked = flags.filter(
+      (f) => !f.escalatedTo || f.escalatedTo.length === 0
+    );
+
+    return {
+      total: unlinked.length,
+      red: unlinked.filter((f) => f.color === "RED").length,
+      yellow: unlinked.filter((f) => f.color === "YELLOW").length,
+      green: unlinked.filter((f) => f.color === "GREEN").length,
+    };
+  }, [flags]);
 
   const badgeColor = (color: string) =>
     color === "RED" ? "red" : color === "YELLOW" ? "yellow" : "green";
@@ -111,14 +127,11 @@ export default function FlagList() {
   }
 
   return (
-    <Stack spaceX={6} p={{ base: 4, md: 6 }}>
+    <Stack p={{ base: 4, md: 6 }}>
       {/* Titel */}
       <Heading size="lg" textAlign="center" color="teal.600">
         Deine Flaggen
       </Heading>
-
-      {/* KPI Cards */}
-      <SimpleKPICards counts={counts} />
 
       {/* Filter + Search */}
       <Flex
@@ -138,19 +151,13 @@ export default function FlagList() {
             onClick={() => setColorFilter("RED")}
             colorScheme={colorFilter === "RED" ? "red" : undefined}
           >
-          🔴 {counts.red}
+            🔴 {counts.red}
           </Button>
           <Button
             onClick={() => setColorFilter("YELLOW")}
             colorScheme={colorFilter === "YELLOW" ? "yellow" : undefined}
           >
             🟡 {counts.yellow}
-          </Button>
-          <Button
-            onClick={() => setColorFilter("GREEN")}
-            colorScheme={colorFilter === "GREEN" ? "green" : undefined}
-          >
-            🟢 {counts.green}
           </Button>
         </ButtonGroup>
 
@@ -163,159 +170,67 @@ export default function FlagList() {
         />
       </Flex>
 
-      {/* Desktop Table */}
-      <Box
-        display={{ base: "none", md: "block" }}
-        borderWidth="1px"
-        borderColor={borderCol}
-        rounded="md"
-        overflow="hidden"
-      >
-        <Table.Root size="sm" stickyHeader interactive>
-          <Table.Header bg={subtleBg}>
-            <Table.Row>
-              <Table.ColumnHeader w="40%">Kriterium</Table.ColumnHeader>
-              <Table.ColumnHeader w="15%">Farbe</Table.ColumnHeader>
-              <Table.ColumnHeader w="15%">Verknüpft</Table.ColumnHeader>
-              <Table.ColumnHeader textAlign="end" w="30%">
-                Datum
-              </Table.ColumnHeader>
-            </Table.Row>
-          </Table.Header>
-          <Table.Body>
-            {filteredFlags.map((flag: any) => {
-              const clickable = hasConnections(flag);
-              return (
-                <Table.Row
+      <SimpleGrid columns={[1, 2]}>
+        {filteredFlags
+          .filter((f) => f.color !== "GREEN" && f.escalatedTo.length == 0)
+          .map((flag) => (
+            <Dialog.Root>
+              <Dialog.Trigger asChild>
+                <Card.Root
                   key={flag.id}
-                  onClick={() => (clickable ? setSelectedFlag(flag) : undefined)}
-                  cursor={clickable ? "pointer" : "default"}
-                  _hover={clickable ? { bg: subtleBg } : undefined}
+                  p={3}
+                  m={1}
+                  bg={getFlagColor(flag.color)}
+                  cursor="pointer"
+                  onClick={() => {
+                    setSelectedFlag(flag); // Nur speichern
+                  }}
                 >
-                  <Table.Cell>{flag.requirement?.title ?? "—"}</Table.Cell>
-                  <Table.Cell>
-                    <Badge colorScheme={badgeColor(flag.color)}>{flag.color}</Badge>
-                  </Table.Cell>
-                  <Table.Cell>
-                    {clickable ? (
-                      <Badge colorScheme="blue">Ja</Badge>
-                    ) : (
-                      <Badge colorScheme="gray">Nein</Badge>
-                    )}
-                  </Table.Cell>
-                  <Table.Cell textAlign="end">
-                    {new Date(flag.createdAt).toLocaleDateString("de-DE")}
-                  </Table.Cell>
-                </Table.Row>
-              );
-            })}
-
-            {filteredFlags.length === 0 && (
-              <Table.Row>
-                <Table.Cell colSpan={4}>
-                  <Text py={4} textAlign="center" color="gray.500">
-                    Keine Flaggen gefunden.
+                  <Text>{flag.color == "YELLOW" ? "Gelb" : "Rot"}</Text>
+                  <Text fontSize="sm">
+                    {moment(flag.createdAt).format("DD.MM.YYYY")}
                   </Text>
-                </Table.Cell>
-              </Table.Row>
-            )}
-          </Table.Body>
-        </Table.Root>
-      </Box>
+                </Card.Root>
+              </Dialog.Trigger>
 
-      {/* Mobile Cards */}
-      <VStack spaceX={3} display={{ base: "flex", md: "none" }}>
-        {filteredFlags.length === 0 && (
-          <Text py={4} textAlign="center" color="gray.500" w="100%">
-            Keine Flaggen gefunden.
-          </Text>
-        )}
-
-        {filteredFlags.map((flag: any) => {
-          const clickable = hasConnections(flag);
-          return (
-            <Box
-              key={flag.id}
-              w="100%"
-              p={4}
-              bg={cardBg}
-              borderWidth="1px"
-              borderColor={borderCol}
-              rounded="md"
-              onClick={() => (clickable ? setSelectedFlag(flag) : undefined)}
-              cursor={clickable ? "pointer" : "default"}
-            >
-              <HStack justify="space-between" mb={1}>
-                <HStack>
-                  <Icon as={BsFlag} color={`${badgeColor(flag.color)}.400`} />
-                  <Badge colorScheme={badgeColor(flag.color)}>{flag.color}</Badge>
-                </HStack>
-                <Text fontSize="sm" color="gray.500">
-                  {new Date(flag.createdAt).toLocaleDateString("de-DE")}
-                </Text>
-              </HStack>
-              <Text fontWeight="semibold">
-                {flag.requirement?.title ?? "—"}
-              </Text>
-              {clickable && (
-                <Text mt={1} fontSize="xs" color="blue.500">
-                  Verknüpfungen anzeigen
-                </Text>
-              )}
-            </Box>
-          );
-        })}
-      </VStack>
-
-      {/* Detailansicht verknüpfter Flaggen */}
-      {selectedFlag && (
-        <Box mt={10}>
-          <Flex justify="space-between" align="center" mb={2}>
-          <Heading size="md">
-              Verknüpfte Flaggen zu: {selectedFlag.requirement?.title ?? "—"}
-            </Heading>
-            <Button size="sm" variant="ghost" onClick={() => setSelectedFlag(null)}>
-              Schließen
-            </Button>
-          </Flex>
-
-          {relatedFlags.length === 0 ? (
-            <Text color="gray.500">Keine Verknüpfungen gefunden.</Text>
-          ) : (
-            <Box
-              borderWidth="1px"
-              borderColor={borderCol}
-              rounded="md"
-              overflow="hidden"
-            >
-              <Table.Root size="sm">
-                <Table.Header bg={subtleBg}>
-                  <Table.Row>
-                    <Table.ColumnHeader>Kriterium</Table.ColumnHeader>
-                    <Table.ColumnHeader>Farbe</Table.ColumnHeader>
-                    <Table.ColumnHeader textAlign="end">Datum</Table.ColumnHeader>
-                  </Table.Row>
-                </Table.Header>
-                <Table.Body>
-                  {relatedFlags.map((flag: any) => (
-                    <Table.Row key={flag.id}>
-                      <Table.Cell>{flag.requirement?.title ?? "—"}</Table.Cell>
-                      <Table.Cell>
-                        <Badge colorScheme={badgeColor(flag.color)}>
-                          {flag.color}
-                        </Badge>
-                      </Table.Cell>
-                      <Table.Cell textAlign="end">
-                        {new Date(flag.createdAt).toLocaleDateString("de-DE")}
-                      </Table.Cell>
-                    </Table.Row>
-                  ))}
-                </Table.Body>
-              </Table.Root>
-            </Box>
-          )}
-        </Box>
-      )}
+              <Portal>
+                <Dialog.Backdrop />
+                <Dialog.Positioner>
+                  <Dialog.Content>
+                    <Dialog.Header>
+                      <Dialog.Title>Flagge</Dialog.Title>
+                    </Dialog.Header>
+                    <Dialog.Body>
+                      {selectedFlag && (
+                        <>
+                          {selectedFlag.escalatedFrom.length == 0 ? (
+                            <Text>{selectedFlag.comment}</Text>
+                          ) : (
+                            collectRequirements(selectedFlag).map((req, i) => (
+                              <Flex key={i} align="center" mb={3}>
+                                <Flex direction="column">
+                                  <Text fontWeight="medium">{req.title}</Text>
+                                  <Text fontSize="sm" color="gray.500">
+                                    {moment(req.date).format("DD.MM.YYYY")}
+                                  </Text>
+                                </Flex>
+                              </Flex>
+                            ))
+                          )}
+                        </>
+                      )}
+                    </Dialog.Body>
+                    <Dialog.Footer>
+                      <Dialog.CloseTrigger asChild>
+                        <Button>Schließen</Button>
+                      </Dialog.CloseTrigger>
+                    </Dialog.Footer>
+                  </Dialog.Content>
+                </Dialog.Positioner>
+              </Portal>
+            </Dialog.Root>
+          ))}
+      </SimpleGrid>
     </Stack>
   );
 }
@@ -323,6 +238,7 @@ export default function FlagList() {
 /* ---------- Kleine KPI Cards oben ---------- */
 
 import { SimpleGrid } from "@chakra-ui/react";
+import moment from "moment";
 
 function SimpleKPICards({
   counts,
@@ -333,10 +249,9 @@ function SimpleKPICards({
   const borderCol = useColorModeValue("gray.200", "gray.600");
 
   const items = [
-    { label: "Gesamt", value: counts.total, color: "teal.500" },
+    { label: "Gesamt", value: counts.total, color: "black.500" },
     { label: "Rot", value: counts.red, color: "red.500" },
     { label: "Gelb", value: counts.yellow, color: "yellow.500" },
-    { label: "Grün", value: counts.green, color: "green.500" },
   ];
 
   return (
@@ -361,4 +276,32 @@ function SimpleKPICards({
     </SimpleGrid>
   );
 }
+function collectRequirements(
+  flag: any,
+  depth = 0
+): { title: string; date: string }[] {
+  if (!flag) return [];
 
+  // Wenn keine weiteren Eskalationen, gib das Kriterium + Datum zurück
+  if (!flag.escalatedFrom || flag.escalatedFrom.length === 0) {
+    return flag.requirement?.title
+      ? [{ title: flag.requirement.title, date: flag.createdAt }]
+      : [];
+  }
+
+  // Sonst: rekursiv durch die Eltern-Flaggen gehen
+  return flag.escalatedFrom.flatMap((link: any) =>
+    collectRequirements(link.fromFlag, depth + 1)
+  );
+}
+
+const getFlagColor = (color: string) => {
+  switch (color) {
+    case "RED":
+      return "red.100";
+    case "YELLOW":
+      return "yellow.100";
+    default:
+      return "gray.100";
+  }
+};

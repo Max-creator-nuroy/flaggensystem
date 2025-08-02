@@ -29,7 +29,7 @@ export default function Navbar() {
       <Text>
         {user.name} {user.last_name}
       </Text>
-      <Link to="/profile" style={{ textDecoration: "none" }}>
+      <Link to="/profilePage" style={{ textDecoration: "none" }}>
         <Button colorScheme="blue" bg="none">
           <Icon as={CgProfile}></Icon>
         </Button>

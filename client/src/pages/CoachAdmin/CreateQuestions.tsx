@@ -2,6 +2,7 @@ import getUserFromToken from "@/services/getTokenFromLokal";
 import {
   Box,
   Button,
+  Checkbox,
   Field,
   FieldLabel,
   Flex,
@@ -16,146 +17,163 @@ import {
 import { useEffect, useState } from "react";
 import { BsX } from "react-icons/bs";
 import { CgCheck } from "react-icons/cg";
-import { LuActivity, LuTrash } from "react-icons/lu";
-import { Form } from "react-router";
 
 export default function CreateQuestions() {
   const [question, setQuestion] = useState("");
-  const token = localStorage.getItem("token");
-  const coach = getUserFromToken(token);
+  const [isRating, setIsRating] = useState(false);
   const [questionList, setQuestionList] = useState([]);
   const [loading, setLoading] = useState(true);
-
-  const fetchQuestions = async () => {
-    const url =
-      coach.role == "COACH"
-        ? `http://localhost:3000/question/getQuestionByCoach/${coach.id}`
-        : `http://localhost:3000/question/getQuestionsByAdmin`;
-    try {
-      await fetch(url, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      })
-        .then((response) => response.json())
-        .then((data) => {
-          setQuestionList(data || []); // <- Passe dies ggf. an deine API an;
-          setLoading(false);
-        });
-    } catch {
-      setLoading(false);
-    }
-  };
+  const token = localStorage.getItem("token");
+  const coach = getUserFromToken(token);
 
   useEffect(() => {
     fetchQuestions();
   }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setQuestion("");
+  const fetchQuestions = async () => {
+    const url =
+      coach.role === "COACH"
+        ? `http://localhost:3000/question/getQuestionByCoach/${coach.id}`
+        : `http://localhost:3000/question/getQuestionsByAdmin`;
 
-    if (question != "") {
-      const url =
-        coach.role == "COACH"
-          ? `http://localhost:3000/question/createQuestion/${coach.id}`
-          : `http://localhost:3000/question/createAdminQuestion`;
-      const token = localStorage.getItem("token");
-      try {
-        await fetch(url, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ text: question }),
-        });
-
-        fetchQuestions();
-      } catch (error) {
-        alert("Netzwerkfehler");
-      }
+    try {
+      const response = await fetch(url, {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      const data = await response.json();
+      setQuestionList(data || []);
+    } catch (err) {
+      console.error("Fehler beim Laden der Fragen", err);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const deleteQuestion = async (qId: any) => {
-    fetch(`http://localhost:3000/question/deleteQuestion/${qId}`, {
-      method: "DELETE",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-    })
-      .then((res) => res.json())
-      .then((data) => fetchQuestions())
-      .catch((err) => console.error(err));
+  const submitQuestion = async () => {
+    if (!question.trim()) return;
+
+    const url =
+      coach.role === "COACH"
+        ? `http://localhost:3000/question/createQuestion/${coach.id}`
+        : `http://localhost:3000/question/createAdminQuestion`;
+
+    try {
+      await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ text: question, isRating }),
+      });
+
+      setQuestion("");
+      setIsRating(false);
+      fetchQuestions();
+    } catch (err) {
+      console.error("Fehler beim Erstellen der Frage", err);
+    }
+  };
+
+  const deleteQuestion = async (qId: string) => {
+    try {
+      await fetch(`http://localhost:3000/question/deleteQuestion/${qId}`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      fetchQuestions();
+    } catch (err) {
+      console.error("Fehler beim Löschen", err);
+    }
   };
 
   const QuestionCard = ({ question }: { question: any }) => (
     <GridItem
       colSpan={{ base: 3, md: 1 }}
       p={4}
-      w="100%"
-      height="100%"
-      borderRadius={1}
+      borderRadius="md"
       borderWidth={1}
+      bg={question.isRating ? "blue.50" : "gray.50"}
     >
-      <Flex justifyContent={"end"}>
-        <IconButton onClick={() => deleteQuestion(question.id)}>
-          <Icon>{question.isDeleted ? <CgCheck /> : <BsX />}</Icon>
+      <Flex justifyContent="space-between" alignItems="center">
+        <Text fontWeight="medium">
+          {question.isRating ? "🔢 Rating" : "✏️ Text"}
+        </Text>
+        <IconButton
+          size="sm"
+          aria-label="Löschen"
+          onClick={() => deleteQuestion(question.id)}
+        >
+          <Icon as={question.isDeleted ? CgCheck : BsX} />
         </IconButton>
       </Flex>
-      <Flex flexDir="column" alignItems="center">
-        <Text>{question.text}</Text>
-      </Flex>
+      <Text mt={3}>{question.text}</Text>
     </GridItem>
   );
 
   return (
-    <Box>
-      <Flex flexDirection="column" m={5}>
-        <Form onSubmit={handleSubmit}>
-          <Flex flexDirection="column">
-            <Field.Root mb={3}>
-              <FieldLabel>Frage</FieldLabel>
-              <Textarea
-                maxWidth={{ lg: "50%" }}
-                value={question}
-                onChange={(e) => setQuestion(e.target.value)}
-              />
-            </Field.Root>
-            <Flex alignItems="end" flexDirection="column">
-              <Button type="submit">Anlegen</Button>
-            </Flex>
-          </Flex>
-        </Form>
-        {loading ? (
-          <Spinner />
-        ) : (
-          <Flex flexDirection={"column"}>
-            <Grid templateColumns="repeat(3, 1fr)" mt={5}>
-              {questionList
-                .filter((question: any) => question.isDeleted == false)
-                .map((question, idx) => (
-                  <QuestionCard question={question} key={idx} />
-                ))}
-            </Grid>
-            <Text mt={5} fontWeight={"medium"}>
-              {" "}
-              Inactive Fragen:
-            </Text>
-            <Grid templateColumns="repeat(3, 1fr)" mt={5}>
-              {questionList
-                .filter((question: any) => question.isDeleted == true)
-                .map((question, idx) => (
-                  <QuestionCard question={question} key={idx} />
-                ))}
-            </Grid>
-          </Flex>
-        )}
+    <Box p={5}>
+      <Field.Root mb={4}>
+        <FieldLabel>Neue Frage</FieldLabel>
+        <Textarea
+          placeholder="Frage eingeben..."
+          maxW="600px"
+          value={question}
+          onChange={(e) => setQuestion(e.target.value)}
+        />
+      </Field.Root>
+      <Checkbox.Root
+        mt={3}
+        checked={isRating}
+        onChange={(e: any) => setIsRating(e.target.checked)}
+      >
+        <Checkbox.HiddenInput />
+        <Checkbox.Control />
+        <Checkbox.Label>Mit Rating beantworten (1–10)</Checkbox.Label>
+      </Checkbox.Root>
+      <Flex justifyContent="flex-end" mb={6}>
+        <Button onClick={submitQuestion} colorScheme="teal">
+          Frage anlegen
+        </Button>
       </Flex>
+
+      {loading ? (
+        <Spinner />
+      ) : (
+        <>
+          <Text fontSize="lg" fontWeight="semibold" mb={2}>
+            Aktive Fragen
+          </Text>
+          <Grid templateColumns="repeat(auto-fill, minmax(280px, 1fr))" gap={4}>
+            {questionList
+              .filter((q: any) => !q.isDeleted)
+              .map((q: any) => (
+                <QuestionCard key={q.id} question={q} />
+              ))}
+          </Grid>
+
+          <Text mt={6} fontSize="lg" fontWeight="semibold">
+            Inaktive Fragen
+          </Text>
+          <Grid
+            templateColumns="repeat(auto-fill, minmax(280px, 1fr))"
+            gap={4}
+            mt={2}
+          >
+            {questionList
+              .filter((q: any) => q.isDeleted)
+              .map((q: any) => (
+                <QuestionCard key={q.id} question={q} />
+              ))}
+          </Grid>
+        </>
+      )}
     </Box>
   );
 }

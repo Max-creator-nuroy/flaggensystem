@@ -9,6 +9,8 @@ import {
   getCoachByUser,
   getAllCoaches,
   getAllCustomers,
+  updateEmail,
+  changePassword,
 } from "../controllers/userController";
 import { authenticateToken } from "../middleware/authMiddleware";
 
@@ -23,6 +25,8 @@ router.get(
 );
 router.post("/createCoach", authenticateToken, createCoach);
 router.post("/createUser/:coachId", authenticateToken, createUser);
+router.patch("/updateEmail/:id", authenticateToken, updateEmail);
+router.patch("/changePassword/:id", authenticateToken, changePassword);
 router.post("/getCountUserFlags/:id", authenticateToken, countUserFlags);
 router.get("/getCoachByUser/:userId", authenticateToken, getCoachByUser);
 router.get("/getUser/:userId", authenticateToken, getUser);
@@ -30,6 +34,6 @@ router.get("/getAllCoaches", authenticateToken, getAllCoaches);
 router.get("/getAllCustomer", authenticateToken, getAllCustomers);
 
 router.get("/:id", authenticateToken, getUser);
-router.put("/:id", authenticateToken, updateUser);
+router.patch("/updateUser/:id", authenticateToken, updateUser);
 
 export default router;

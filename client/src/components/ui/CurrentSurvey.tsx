@@ -4,7 +4,6 @@ import {
   Button,
   Card,
   CardBody,
-  CardHeader,
   Flex,
   Heading,
   Spinner,
@@ -12,6 +11,7 @@ import {
   Text,
   Textarea,
   Badge,
+  Slider,
 } from "@chakra-ui/react";
 import React, { useEffect, useState } from "react";
 
@@ -22,6 +22,7 @@ type SurveyQuestion = {
   question: {
     id: string;
     text: string;
+    isRating?: boolean;
   };
 };
 
@@ -32,8 +33,9 @@ type Survey = {
 
 export default function CurrentSurvey() {
   const [survey, setSurvey] = useState<Survey | null>(null);
-  const [surveyList, setSurveyList] = useState<any>([]);
-  const [answers, setAnswers] = useState<{ [key: string]: string }>({});
+  const [answers, setAnswers] = useState<{
+    [key: string]: { answer?: string; rating?: any };
+  }>({});
   const [loading, setLoading] = useState(true);
   const token = localStorage.getItem("token");
   const user = getUserFromToken(token);
@@ -41,7 +43,7 @@ export default function CurrentSurvey() {
   const fetchQuestions = async () => {
     try {
       setLoading(true);
-      const surveyResponse = await fetch(
+      const res = await fetch(
         `http://localhost:3000/surveys/getCurrentSurvey/${user.id}`,
         {
           method: "GET",
@@ -51,43 +53,39 @@ export default function CurrentSurvey() {
           },
         }
       );
-      const surveyData = await surveyResponse.json();
-      setSurvey(surveyData);
+      const data = await res.json();
+      setSurvey(data);
+      console.log(survey);
 
-      // Initiale Antworten setzen
-      const initialAnswers: { [key: string]: string } = {};
-      surveyData?.questions?.forEach((q: SurveyQuestion) => {
-        initialAnswers[q.id] = q.answer || "";
+      const initialAnswers: {
+        [key: string]: { answer?: string; rating?: number | null };
+      } = {};
+      data?.questions?.forEach((q: SurveyQuestion) => {
+        initialAnswers[q.id] = {
+          answer: q.answer || "",
+          rating: q.rating || 5, // default für Slider zentriert
+        };
       });
       setAnswers(initialAnswers);
-
-      // Vergangene Umfragen laden
-      const historyResponse = await fetch(
-        `http://localhost:3000/surveys/getSurveysByUser/${user.id}`,
-        {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-      const historyData = await historyResponse.json();
-      setSurveyList(historyData.filter((s: any) => s.submittedAt != null));
-    } catch (error) {
-      console.error("Fehler beim Laden der Umfrage", error);
+    } catch (err) {
+      console.error("Fehler beim Laden der Umfrage", err);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleInputChange = (id: string, value: string) => {
-    setAnswers((prev) => ({ ...prev, [id]: value }));
+  const handleTextChange = (id: string, value: string) => {
+    setAnswers((prev) => ({ ...prev, [id]: { ...prev[id], answer: value } }));
+  };
+
+  const handleRatingChange = (id: string, value: number) => {
+    setAnswers((prev) => ({ ...prev, [id]: { ...prev[id], rating: value } }));
   };
 
   const handleSubmit = async () => {
+    console.log(answers); 
     try {
-      const response = await fetch(
+      const res = await fetch(
         `http://localhost:3000/surveys/submitSurveyAnswers/${survey?.id}`,
         {
           method: "PATCH",
@@ -96,20 +94,21 @@ export default function CurrentSurvey() {
             Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({
-            answers: Object.entries(answers).map(([id, answer]) => ({
+            answers: Object.entries(answers).map(([id, entry]) => ({
               id,
-              answer,
+              answer: entry.answer,
+              rating: entry.rating,
             })),
           }),
         }
       );
 
-      if (!response.ok) {
-        throw new Error("Fehler beim Absenden");
-      }
+      if (!res.ok) throw new Error("Fehler beim Absenden");
 
-      fetchQuestions(); // Aktualisiere die Ansicht
-    } catch (error) {}
+      fetchQuestions(); // Reload
+    } catch (err) {
+      console.error("Fehler beim Absenden", err);
+    }
   };
 
   useEffect(() => {
@@ -118,18 +117,6 @@ export default function CurrentSurvey() {
 
   return (
     <Box m={5}>
-      {/* Header */}
-      <Flex align="center" justify="space-between" mb={6}>
-        <Heading size="lg" textAlign="center" w="100%">
-          Aktuelle Umfrage
-        </Heading>
-        {user?.role === "COACH" && (
-          <Badge colorScheme="purple" ml={2}>
-            Coach-Ansicht
-          </Badge>
-        )}
-      </Flex>
-
       {loading ? (
         <Flex justify="center" align="center" minH="200px">
           <Spinner size="lg" />
@@ -137,22 +124,60 @@ export default function CurrentSurvey() {
       ) : !survey ? (
         <Text color="gray.500">Keine aktuelle Umfrage verfügbar.</Text>
       ) : !Array.isArray(survey.questions) || survey.questions.length === 0 ? (
-        <Text color="gray.500">Keine Fragen in der aktuellen Umfrage.</Text>
+        <Text color="gray.500">Keine aktuelle Umfrage verfügbar.</Text>
       ) : (
         <Card.Root variant="outline" p={4} mb={6}>
           <CardBody>
-            <Stack >
-              {survey.questions.map((q) => (
+            <Stack>
+              {survey?.questions?.map((q: any) => (
                 <Box key={q.id}>
                   <Text fontWeight="semibold" mb={2}>
                     {q.question?.text}
                   </Text>
-                  <Textarea
-                    value={answers[q.id] || ""}
-                    onChange={(e) => handleInputChange(q.id, e.target.value)}
-                    placeholder="Antwort eingeben..."
-                    resize="vertical"
-                  />
+
+                  {q.question?.isRating ? (
+                    <Box px={2}>
+                      <Slider.Root
+                        min={1}
+                        max={10}
+                        step={1}
+                        value={[answers[q.id]?.rating ?? 5]} // <- Als Array übergeben
+                        onValueChange={(value) =>
+                          handleRatingChange(q.id, value.value[0])
+                        }
+                        onValueChangeEnd={(value) => {
+                          handleRatingChange(q.id, value.value[0]); // <- Zugriff auf Wert im Array
+                        }}
+                      >
+                        <Slider.Control>
+                          <Slider.Track>
+                            <Slider.Range />
+                          </Slider.Track>
+                          <Slider.Thumb index={0}>
+                            <Slider.DraggingIndicator
+                              layerStyle="fill.solid"
+                              top="6"
+                              rounded="sm"
+                              px="1.5"
+                            >
+                              <Slider.ValueText />
+                            </Slider.DraggingIndicator>
+                          </Slider.Thumb>
+                        </Slider.Control>
+                      </Slider.Root>
+
+                      <Text fontSize="sm" mt={1} textAlign="right">
+                        Bewertung: {answers[q.id]?.rating}
+                      </Text>
+                    </Box>
+                  ) : (
+                    <Textarea
+                      value={answers[q.id]?.answer || ""}
+                      onChange={(e) => handleTextChange(q.id, e.target.value)}
+                      placeholder="Antwort eingeben..."
+                      resize="vertical"
+                    />
+                  )}
                 </Box>
               ))}
               <Button colorScheme="teal" onClick={handleSubmit}>

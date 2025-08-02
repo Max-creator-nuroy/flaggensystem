@@ -32,7 +32,7 @@ export const startSurveyCoachCronJob = () => {
 
 export const startSurveyCustomerCronJob = () => {
   // Jeden Sonntag um 8:00 Uhr für die CUSTOMER
-  cron.schedule("10 14 * * 3", async () => {
+  cron.schedule("35 20 * * 4", async () => {
     console.log("⏰ Cron gestartet: Weekly Surveys");
 
     const customers = await prisma.user.findMany({

@@ -13,25 +13,16 @@ import {
   Table,
 } from "@chakra-ui/react";
 import { useEffect, useMemo, useState } from "react";
-import {
-  useColorModeValue,
-} from "@/components/ui/color-mode"
+import { useColorModeValue } from "@/components/ui/color-mode";
 import { CgDanger, CgProfile } from "react-icons/cg";
 import { FcQuestions } from "react-icons/fc";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import getUserFromToken from "@/services/getTokenFromLokal";
 
-type Customer = {
-  id: string;
-  name: string;
-  last_name: string;
-  mobileNumber?: string | null;
-  isAffiliate: boolean;
-  flags: { id: string; color: "RED" | "YELLOW" | "GREEN"; createdAt: string }[];
-};
+
 
 export default function DashboardCoach() {
-  const [customerList, setCustomerList] = useState<Customer[]>([]);
+  const [customerList, setCustomerList] = useState<any[]>([]);
   const [countAffiliate, setCountAffiliate] = useState<number>(0);
   const [countCustomer, setCountCustomer] = useState<number>(0);
   const [cRForCustomers, setCRForCustomers] = useState<number>(0);
@@ -65,7 +56,7 @@ export default function DashboardCoach() {
           },
         }
       );
-      const data: Customer[] = await res.json();
+      const data: any[] = await res.json();
 
       setCustomerList(data);
       setCountCustomer(data.filter((c) => !c.isAffiliate).length);
@@ -74,7 +65,7 @@ export default function DashboardCoach() {
       let risk = 0;
       let lost = 0;
       data.forEach((customer) => {
-        const redFlags = customer.flags.filter((f) => f.color === "RED").length;
+        const redFlags = customer.flags.filter((f:any) => f.color === "RED").length;
         if (redFlags >= 10) lost += 1;
         else if (redFlags >= 5) risk += 1;
       });
@@ -95,7 +86,7 @@ export default function DashboardCoach() {
         }
       );
       const cr = await resCR.json();
-      setCRForCustomers(cr ?? 0);
+      setCRForCustomers(truncateToTwoDecimals(cr )?? 0);
     } catch (e) {
       console.error(e);
     } finally {
@@ -117,13 +108,17 @@ export default function DashboardCoach() {
       };
     }
     const totalRed = customerList.reduce(
-      (acc, c) => acc + c.flags.filter((f) => f.color === "RED").length,
+      (acc, c) => acc + c.flags.filter((f:any) => f.color === "RED").length,
       0
     );
-    const zeroFlagCustomers = customerList.filter((c) => c.flags.length === 0).length;
+    const zeroFlagCustomers = customerList.filter(
+      (c) => c.flags.length === 0
+    ).length;
     return {
       avgRedFlags: +(totalRed / customerList.length).toFixed(2),
-      zeroFlagPct: +((zeroFlagCustomers / customerList.length) * 100).toFixed(1),
+      zeroFlagPct: +((zeroFlagCustomers / customerList.length) * 100).toFixed(
+        1
+      ),
     };
   }, [customerList]);
 
@@ -137,13 +132,24 @@ export default function DashboardCoach() {
   }, [customerList, searchTerm]);
 
   // --- Helper ---
-  const countColor = (customer: Customer, color: "RED" | "YELLOW" | "GREEN") =>
-    customer.flags.filter((f) => f.color === color).length;
+  const countColor = (customer: any, color: "RED" | "YELLOW" | "GREEN") =>
+    customer.flags.filter((f:any) => f.color === color && f.escalatedTo.length == 0).length;
+
+  function truncateToTwoDecimals(num: number): number {
+    return Math.trunc(num * 100) / 100;
+  }
 
   return (
     <Box>
       {/* KPI Grid */}
-      <Grid templateColumns={{ base: "1fr", md: "repeat(2, 1fr)", xl: "repeat(4, 1fr)" }} mt={{ base: 4, md: 6 }}>
+      <Grid
+        templateColumns={{
+          base: "1fr",
+          md: "repeat(2, 1fr)",
+          xl: "repeat(4, 1fr)",
+        }}
+        mt={{ base: 4, md: 6 }}
+      >
         {/* Gesamte Nutzer */}
         <GridItem colSpan={1}>
           <CardRoot
@@ -171,13 +177,13 @@ export default function DashboardCoach() {
         {/* Garantie verloren */}
         <GridItem colSpan={1}>
           <CardRoot
-          onClick={() => handleClick("/customerFlags?garanty=LOST")}
-          title="Garantie verloren"
-          icon={<CgDanger color="red" />}
-          value={garantyLost}
-          subtitle="≥ 10 rote Flaggen"
-          bgColor="red.500"
-        />
+            onClick={() => handleClick("/customerFlags?garanty=LOST")}
+            title="Garantie verloren"
+            icon={<CgDanger color="red" />}
+            value={garantyLost}
+            subtitle="≥ 10 rote Flaggen"
+            bgColor="red.500"
+          />
         </GridItem>
 
         {/* Survey Completion */}
@@ -190,12 +196,22 @@ export default function DashboardCoach() {
             height="100%"
             bg={cardBg}
             borderColor={borderCol}
-            _hover={{ cursor: "pointer", bg: useColorModeValue("blue.50", "gray.600") }}
+            _hover={{
+              cursor: "pointer",
+              bg: useColorModeValue("blue.50", "gray.600"),
+            }}
             onClick={() => handleClick("/survey/surveyAnswers")}
           >
             <Flex flexDirection="column">
-              <Flex p={5} pb={0} justifyContent="space-between" alignItems="center">
-                <Text fontSize={{ lg: "xl", sm: "md" }}>Umfragen beantwortet</Text>
+              <Flex
+                p={5}
+                pb={0}
+                justifyContent="space-between"
+                alignItems="center"
+              >
+                <Text fontSize={{ lg: "xl", sm: "md" }}>
+                  Umfragen beantwortet
+                </Text>
                 <Icon as={FcQuestions} />
               </Flex>
               <Flex flexDirection={"column"} m={5} mt={3}>
@@ -205,7 +221,9 @@ export default function DashboardCoach() {
                     <Progress.Track flex="1">
                       <Progress.Range />
                     </Progress.Track>
-                    <Progress.ValueText>{cRForCustomers ?? 0}%</Progress.ValueText>
+                    <Progress.ValueText>
+                      {cRForCustomers ?? 0}%
+                    </Progress.ValueText>
                   </HStack>
                 </Progress.Root>
               </Flex>
@@ -215,7 +233,14 @@ export default function DashboardCoach() {
       </Grid>
 
       {/* Extra Stats Row */}
-      <Grid templateColumns={{ base: "1fr", md: "repeat(2, 1fr)", xl: "repeat(3, 1fr)" }} mt={5}>
+      <Grid
+        templateColumns={{
+          base: "1fr",
+          md: "repeat(2, 1fr)",
+          xl: "repeat(3, 1fr)",
+        }}
+        mt={5}
+      >
         <GridItem>
           <MiniStatCard
             label="Ø rote Flags pro Kunde"
@@ -240,9 +265,21 @@ export default function DashboardCoach() {
       </Grid>
 
       {/* Kundenliste */}
-      <Box p={5} mx="auto" borderRadius="lg" m={5} bg={cardBg} borderWidth={1} borderColor={borderCol}>
-        <Text fontSize="2xl" fontWeight="bold">Meine Kunden</Text>
-        <Text fontSize="sm" color="gray.500">Detailansicht aller zugewiesenen Kunden</Text>
+      <Box
+        p={5}
+        mx="auto"
+        borderRadius="lg"
+        m={5}
+        bg={cardBg}
+        borderWidth={1}
+        borderColor={borderCol}
+      >
+        <Text fontSize="2xl" fontWeight="bold">
+          Meine Kunden
+        </Text>
+        <Text fontSize="sm" color="gray.500">
+          Detailansicht aller zugewiesenen Kunden
+        </Text>
 
         {loading ? (
           <Spinner mt={4} />
@@ -266,7 +303,9 @@ export default function DashboardCoach() {
                       <Table.ColumnHeader>Name</Table.ColumnHeader>
                       <Table.ColumnHeader>Handynummer</Table.ColumnHeader>
                       <Table.ColumnHeader>Rolle</Table.ColumnHeader>
-                      <Table.ColumnHeader textAlign="end">Flags (G/Y/R)</Table.ColumnHeader>
+                      <Table.ColumnHeader textAlign="end">
+                        Flags (G/Y/R)
+                      </Table.ColumnHeader>
                     </Table.Row>
                   </Table.Header>
                   <Table.Body>
@@ -275,7 +314,9 @@ export default function DashboardCoach() {
                         key={customer.id}
                         _hover={{ cursor: "pointer", bg: "blue.50" }}
                         onClick={() =>
-                          handleClick(`/dashboard/CUSTOMER?userId=${customer.id}`)
+                          handleClick(
+                            `/dashboard/CUSTOMER?userId=${customer.id}`
+                          )
                         }
                       >
                         <Table.Cell>
@@ -283,7 +324,11 @@ export default function DashboardCoach() {
                         </Table.Cell>
                         <Table.Cell>{customer.mobileNumber || "—"}</Table.Cell>
                         <Table.Cell>
-                          <Badge colorScheme={customer.isAffiliate ? "purple" : "blue"}>
+                          <Badge
+                            colorScheme={
+                              customer.isAffiliate ? "purple" : "blue"
+                            }
+                          >
                             {customer.isAffiliate ? "Affiliate" : "Kunde"}
                           </Badge>
                         </Table.Cell>
@@ -319,7 +364,10 @@ export default function DashboardCoach() {
                   p={4}
                   mb={2}
                   onClick={() => handleClick(`/dashboard/CUSTOMER?userId=${c.id}`)}
-                  _hover={{ cursor: "pointer", bg: useColorModeValue("blue.50", "gray.600") }}
+                  _hover={{
+                    cursor: "pointer",
+                    bg: useColorModeValue("blue.50", "gray.600"),
+                  }}
                 >
                   <Flex justify="space-between">
                     <Box>
@@ -329,14 +377,14 @@ export default function DashboardCoach() {
                       <Text fontSize="sm" color="gray.500">
                         {c.mobileNumber || "—"}
                       </Text>
-                      <Badge mt={1} colorScheme={c.isAffiliate ? "purple" : "blue"}>
+                      <Badge
+                        mt={1}
+                        colorScheme={c.isAffiliate ? "purple" : "blue"}
+                      >
                         {c.isAffiliate ? "Affiliate" : "Kunde"}
                       </Badge>
                     </Box>
                     <Flex align="center">
-                      <Text color="green.500">
-                        {countColor(c, "GREEN")}
-                      </Text>
                       <Text color="yellow.500" ml={2}>
                         {countColor(c, "YELLOW")}
                       </Text>
@@ -384,7 +432,10 @@ function CardRoot({
       height="100%"
       bg={bg}
       borderColor={borderCol}
-      _hover={{ cursor: onClick ? "pointer" : "default", bg: useColorModeValue("blue.50", "gray.600") }}
+      _hover={{
+        cursor: onClick ? "pointer" : "default",
+        bg: useColorModeValue("blue.50", "gray.600"),
+      }}
       onClick={onClick}
     >
       <Flex flexDirection="column">
@@ -393,7 +444,11 @@ function CardRoot({
           {icon && <Icon>{icon}</Icon>}
         </Flex>
         <Flex flexDirection={"column"}>
-          <Text ml={5} fontSize={{ lg: "2xl", sm: "xl" }} color={bgColor || "inherit"}>
+          <Text
+            ml={5}
+            fontSize={{ lg: "2xl", sm: "xl" }}
+            color={bgColor || "inherit"}
+          >
             {value}
           </Text>
           {subtitle && (
@@ -419,7 +474,14 @@ function MiniStatCard({
   const bg = useColorModeValue("white", "gray.700");
   const borderCol = useColorModeValue("gray.200", "gray.600");
   return (
-    <Box borderRadius="lg" borderWidth={1} m={5} mt={0} bg={bg} borderColor={borderCol}>
+    <Box
+      borderRadius="lg"
+      borderWidth={1}
+      m={5}
+      mt={0}
+      bg={bg}
+      borderColor={borderCol}
+    >
       <Flex flexDirection="column" p={4}>
         <Text fontSize="sm" color="gray.500">
           {label}

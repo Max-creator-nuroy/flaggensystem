@@ -11,6 +11,7 @@ import {
   getSurveyCompletionRateForCustomers,
   getSurveyCompletionRateForCustomersByCoach,
   getCurrentSurvey,
+  getSurveyCompletionRateForCoaches,
 } from "../controllers/surveyController";
 import { authenticateToken } from "../middleware/authMiddleware";
 
@@ -28,6 +29,7 @@ router.get("/getSurveyById/:surveyId", authenticateToken, getSurveyById);
 router.get("/getSurveyByAdmin/", authenticateToken, getSurveyByAdmin);
 router.get("/getCustomerSurveyByCoach/:coachId", authenticateToken, getCustomerSurveyByCoach);
 router.get("/getSurveyCompletionRateForCustomers", authenticateToken, getSurveyCompletionRateForCustomers);
+router.get("/getSurveyCompletionRateForCoaches", authenticateToken, getSurveyCompletionRateForCoaches);
 router.get("/getSurveyCompletionRateForCustomersByCoach/:coachId", authenticateToken, getSurveyCompletionRateForCustomersByCoach)
 
 router.delete("/deleteSurvey/:surveyId", authenticateToken, deleteSurvey);

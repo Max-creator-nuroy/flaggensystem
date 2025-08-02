@@ -23,12 +23,21 @@ model User {
   mobileNumber String?
   role         Role
 
-  dailyChecks DailyCheck[]
-  requiremnt  Requirement[]
-  flags       Flag[]
-  surveys     Survey[]
-  videos      Video[]
-  leads       Lead[]
+  // 1:1- oder m:1-Relation zur Phase als Kunde
+  phase   Phase?  @relation("CustomerToPhase", fields: [phaseId], references: [id])
+  phaseId String?
+
+  // 1:n-Relation: Coach hat viele Phasen
+  coachedPhases Phase[]       @relation("CoachToPhases")
+  absences      Absence[]
+  coachRules    String?
+  dailyChecks   DailyCheck[]
+  missedCheck   MissedCheck[]
+  requiremnt    Requirement[]
+  flags         Flag[]
+  surveys       Survey[]
+  videos        Video[]
+  leads         Lead[]
 
   questions Question[] @relation("CreatedQuestions")
 
@@ -40,6 +49,7 @@ model User {
   //customers User[] @relation("CustomerRelation", through: "CoachCustomer", fields: [], references: [])
 
   createdAt DateTime @default(now())
+  Phase     Phase[]
 }
 
 model CoachCustomer {
@@ -56,18 +66,51 @@ model CoachCustomer {
   @@unique([coachId, customerId]) // jeder Coach–Kunde-Paar nur 1×
 }
 
+model Phase {
+  id        String  @id @default(uuid())
+  name      String  @unique
+  // Phase gehört einem Coach (User mit Rolle = Coach)
+  coach     User    @relation("CoachToPhases", fields: [coachId], references: [id])
+  coachId   String
+  // Viele Kunden gehören zu dieser Phase
+  customers User[]  @relation("CustomerToPhase")
+  order     Int?
+  label     String?
+  isDeleted Boolean
+  User      User?   @relation(fields: [userId], references: [id])
+  userId    String?
+}
+
+model Absence {
+  id        String      @id @default(uuid())
+  user      User        @relation(fields: [userId], references: [id])
+  userId    String
+  type      AbsenceType
+  from      DateTime
+  to        DateTime
+  note      String?
+  createdAt DateTime    @default(now())
+}
+
+enum AbsenceType {
+  URLAUB
+  KRANKHEIT
+  ANDERES
+}
+
 model Flag {
   id        String    @id @default(uuid())
   user      User      @relation(fields: [userId], references: [id])
   userId    String
   color     FlagColor
   createdAt DateTime  @default(now())
+  comment   String?
 
-  requirement   Requirement @relation(fields: [requirementId], references: [id])
-  requirementId String
+  requirement   Requirement? @relation(fields: [requirementId], references: [id])
+  requirementId String?
 
-  dailyCheckEntry   DailyCheckEntry @relation(fields: [dailyCheckEntryId], references: [id])
-  dailyCheckEntryId String          @unique // wichtig: 1:1!
+  dailyCheckEntry   DailyCheckEntry? @relation(fields: [dailyCheckEntryId], references: [id])
+  dailyCheckEntryId String?          @unique // wichtig: 1:1!
 
   escalatedFrom FlagEscalationLink[] @relation("ToFlag")
   escalatedTo   FlagEscalationLink[] @relation("FromFlag")
@@ -93,15 +136,16 @@ model Video {
 }
 
 model Lead {
-  id           String        @id @default(uuid())
-  user         User          @relation(fields: [userId], references: [id])
+  id           String         @id @default(uuid())
+  user         User           @relation(fields: [userId], references: [id])
   userId       String
   name         String
-  mobileNumber String        @unique
-  stage        PipelineStage @relation(fields: [stageId], references: [id])
-  stageId      String
-  closed       Boolean       @default(false)
-  createdAt    DateTime      @default(now())
+  email        String?
+  mobileNumber String?         @unique
+  stage        PipelineStage? @relation(fields: [stageId], references: [id])
+  stageId      String?
+  closed       Boolean        @default(false)
+  createdAt    DateTime       @default(now())
 }
 
 model Survey {
@@ -131,13 +175,14 @@ model Question {
   createdByCoach   User?            @relation("CreatedQuestions", fields: [createdByCoachId], references: [id])
   createdByCoachId String?
   createdAt        DateTime         @default(now())
+  isRating         Boolean          @default(false)
   isDeleted        Boolean          @default(false) // 👈 das neue Feld
   surveyAnswers    SurveyQuestion[]
 }
 
 model PipelineStage {
-  id    String @id @default(uuid())
-  name  String
+  id    String @id // Keine Default-UUID – ID kommt von Close!
+  name  String @unique
   leads Lead[]
 }
 
@@ -184,6 +229,15 @@ model DailyCheckEntry {
 
   createdAt DateTime @default(now())
   Flag      Flag?
+}
+
+model MissedCheck {
+  id        String   @id @default(uuid())
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  date      DateTime
+  flagged   Boolean  @default(false)
+  createdAt DateTime @default(now())
 }
 
 enum FlagColor {

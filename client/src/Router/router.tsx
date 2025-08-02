@@ -17,6 +17,9 @@ import CustomerFlags from "@/pages/CoachAdmin/CustomerFlags";
 import CurrentSurvey from "@/components/ui/CurrentSurvey";
 import CustomerList from "@/components/ui/CustomerList";
 import LeadList from "@/components/ui/LeadList";
+import CreateUser from "@/pages/Coach/createUser";
+import CreateCoach from "@/pages/Admin/CreateCoach";
+import ProfilePage from "@/pages/ProfilPage";
 
 export const router = createBrowserRouter([
   {
@@ -38,6 +41,7 @@ export const router = createBrowserRouter([
         ),
         children: [
           { path: "dashboard/CUSTOMER", element: <DashboardUser /> },
+          { path: "profilePage", element: <ProfilePage /> },
           { path: "flagList", element: <FlagList /> },
           { path: "customerFlags", element: <CustomerFlags /> },
           { path: "survey", element: <CurrentSurvey /> },
@@ -68,6 +72,7 @@ export const router = createBrowserRouter([
           { path: "dashboard/COACH", element: <DashboardCoach /> },
           { path: "dashboard/CUSTOMER", element: <DashboardUser /> },
           { path: "customerList/ADMIN", element: <AdminCustomerList /> },
+          { path: "createCoach", element: <CreateCoach /> },
         ],
       },
       {
@@ -77,6 +82,7 @@ export const router = createBrowserRouter([
           { path: "dashboard/COACH", element: <DashboardCoach /> },
           { path: "dashboard/CUSTOMER", element: <DashboardUser /> },
           { path: "requirement", element: <Requirement /> },
+          { path: "createUser", element: <CreateUser /> },
         ],
       },
       {

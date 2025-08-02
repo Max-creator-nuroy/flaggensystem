@@ -1,5 +1,6 @@
 import {
   Box,
+  Button,
   Flex,
   Grid,
   GridItem,
@@ -20,14 +21,15 @@ import {
 import { useEffect, useState } from "react";
 import { FcQuestions } from "react-icons/fc";
 import { useNavigate } from "react-router-dom";
+import AdminCustomerList from "./AdminCustomerList";
 
 export default function DashboardAdmin() {
   const [coachList, setCoachList] = useState<any>([]);
   const [customerList, setCustomerList] = useState<any>([]);
   const [countAffiliate, setCountAffiliate] = useState();
   const [countCustomer, setCountCustomer] = useState();
-  const [cRForCustomers, setCRForCustomers] = useState();
-  const [cRForCoaches, setCRForCoaches] = useState();
+  const [cRForCustomers, setCRForCustomers] = useState<number>(0);
+  const [cRForCoaches, setCRForCoaches] = useState<number>(0);
   const [countUser, setCountUser] = useState();
   const [sortAsc, setSortAsc] = useState(true);
   const [atRisk, setAtRisk] = useState<number>(0);
@@ -92,7 +94,7 @@ export default function DashboardAdmin() {
           }
         }
       });
-    await fetch(
+    const resCR = await fetch(
       `http://localhost:3000/surveys/getSurveyCompletionRateForCustomers`,
       {
         method: "GET",
@@ -101,12 +103,10 @@ export default function DashboardAdmin() {
           Authorization: `Bearer ${token}`,
         },
       }
-    )
-      .then((response) => response.json())
-      .then((data) => {
-        setCRForCustomers(data);
-      });
-    await fetch(
+    );
+    const cr = await resCR.json();
+    setCRForCustomers(truncateToTwoDecimals(cr) ?? 0);
+    const resCRC =  await fetch(
       `http://localhost:3000/surveys/getSurveyCompletionRateForCoaches`,
       {
         method: "GET",
@@ -115,11 +115,9 @@ export default function DashboardAdmin() {
           Authorization: `Bearer ${token}`,
         },
       }
-    )
-      .then((response) => response.json())
-      .then((data) => {
-        setCRForCoaches(data);
-      });
+    );
+    const crc = await resCRC.json();
+    setCRForCoaches(truncateToTwoDecimals(crc) ?? 0);
   };
 
   const sortByRole = () => {
@@ -141,6 +139,10 @@ export default function DashboardAdmin() {
   const filteredCoches = coachList.filter((coach: any) =>
     coach.name.toLowerCase().startsWith(searchTermCoach.toLowerCase())
   );
+
+  function truncateToTwoDecimals(num: number): number {
+    return Math.trunc(num * 100) / 100;
+  }
 
   return (
     <Box>
@@ -299,16 +301,16 @@ export default function DashboardAdmin() {
                     <Progress.Track flex="1">
                       <Progress.Range />
                     </Progress.Track>
-                    <Progress.ValueText>{cRForCustomers}</Progress.ValueText>
+                    <Progress.ValueText>{cRForCustomers}%</Progress.ValueText>
                   </HStack>
                 </Progress.Root>
-                <Progress.Root value={cRForCustomers} maxW="md">
+                <Progress.Root value={cRForCoaches} maxW="md">
                   <HStack>
                     <Progress.Label>Coaches</Progress.Label>
                     <Progress.Track flex="1">
                       <Progress.Range />
                     </Progress.Track>
-                    <Progress.ValueText>{cRForCoaches}</Progress.ValueText>
+                    <Progress.ValueText>{cRForCoaches}%</Progress.ValueText>
                   </HStack>
                 </Progress.Root>
               </Flex>
@@ -316,14 +318,29 @@ export default function DashboardAdmin() {
           </Box>
         </GridItem>
       </Grid>
-
-      <Input
-        ml={5}
-        placeholder="Nach namen Suchen"
-        maxWidth={{ base: "20vh", sm: "40vh", lg: "60vh" }}
-        type="text"
-        onChange={(e) => setSearchTermCoach(e.target.value)}
-      ></Input>
+      <hr
+        style={{
+          border: "none",
+          borderTop: "1px solid #ccc",
+          margin: "20px 0",
+        }}
+      />
+      <Flex justifyContent={"space-between"}>
+        <Input
+          ml={5}
+          placeholder="Nach namen Suchen"
+          maxWidth={{ base: "20vh", sm: "40vh", lg: "60vh" }}
+          type="text"
+          onChange={(e) => setSearchTermCoach(e.target.value)}
+        ></Input>
+        <Button
+          onClick={() => {
+            navigate(`/createCoach`);
+          }}
+        >
+          Coach anlegen
+        </Button>
+      </Flex>
       <Table.ScrollArea m={5} borderWidth="1px" rounded="md" height="100%">
         <Table.Root size="sm" stickyHeader interactive>
           <Table.Header>
@@ -358,77 +375,14 @@ export default function DashboardAdmin() {
         type="text"
         onChange={(e) => setSearchTermCustomer(e.target.value)}
       ></Input>
-      <Table.ScrollArea m={5} borderWidth="1px" rounded="md" height="50vh">
-        <Table.Root size="sm" stickyHeader interactive>
-          <Table.Header>
-            <Table.Row bg="bg.subtle">
-              <Table.ColumnHeader>Kunde</Table.ColumnHeader>
-              <Table.ColumnHeader>Handynummer</Table.ColumnHeader>
-              <Table.ColumnHeader>
-                Rolle{" "}
-                <IconButton
-                  borderWidth={0}
-                  ml={2}
-                  size="xs"
-                  aria-label="Sort by role"
-                  onClick={sortByRole}
-                  variant="ghost"
-                >
-                  <Icon>{sortAsc ? <CgChevronDown /> : <CgChevronUp />}</Icon>
-                </IconButton>
-              </Table.ColumnHeader>
-              <Table.ColumnHeader textAlign="end">Flaggen</Table.ColumnHeader>
-            </Table.Row>
-          </Table.Header>
-          <Table.Body>
-            {filteredCustomers.map((customer: any) => (
-              <Table.Row
-                key={customer.id}
-                _hover={{ cursor: "pointer", bg: "blue.100" }}
-                onClick={() =>
-                  handleClick(`/dashboard/CUSTOMER?userId=${customer.id}`)
-                }
-              >
-                <Table.Cell>
-                  {customer.name} {customer.last_name}
-                </Table.Cell>
-                <Table.Cell>{customer.mobileNumber}</Table.Cell>
-                <Table.Cell>
-                  {customer.isAffiliate ? "Affiliate" : "Kunde"}
-                </Table.Cell>
-                <Table.Cell>
-                  <Flex justifyContent={"end"}>
-                    <Text color="green.500">
-                      {" "}
-                      {customer.flags.length == 0
-                        ? 0
-                        : customer.flags.filter((flag: any) => {
-                            flag.color == "GREEN";
-                          }).length}
-                    </Text>
-                    <Text color="yellow.500" ml={1}>
-                      {" "}
-                      {customer.flags.length == 0
-                        ? 0
-                        : customer.flags.filter((flag: any) => {
-                            flag.color == "YELLO";
-                          }).length}
-                    </Text>
-                    <Text color="red.500" ml={1}>
-                      {" "}
-                      {customer.flags.length == 0
-                        ? 0
-                        : customer.flags.filter((flag: any) => {
-                            flag.color == "RED";
-                          }).length}
-                    </Text>
-                  </Flex>
-                </Table.Cell>
-              </Table.Row>
-            ))}
-          </Table.Body>
-        </Table.Root>
-      </Table.ScrollArea>
+      <hr
+        style={{
+          border: "none",
+          borderTop: "1px solid #ccc",
+          margin: "20px 0",
+        }}
+      />
+      <AdminCustomerList></AdminCustomerList>
     </Box>
   );
 }

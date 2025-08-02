@@ -13,6 +13,7 @@ interface UpdateLeadInput {
 interface CreateLeadInput {
   name: string;
   mobileNumber: string;
+  email: string;
   userId: string;
   stageId: string;
   closed?: boolean;
@@ -67,6 +68,7 @@ export async function createLeadByMobile(input: CreateLeadInput) {
     data: {
       name: input.name,
       mobileNumber: input.mobileNumber,
+      email: input.email,
       userId: input.userId,
       stageId: input.stageId,
       closed: input.closed ?? false,

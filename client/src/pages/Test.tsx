@@ -7,6 +7,7 @@ export default function Test() {
   const [name, setName] = useState("");
   const [lastName, setLastName] = useState("");
   const [role, setRole] = useState("");
+  const [mobileNumber, setMobileNumber] = useState("");
   const [isAffiliate, setIsAffiliate] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -20,6 +21,7 @@ export default function Test() {
       last_name: lastName,
       role,
       isAffiliate,
+      mobileNumber,
     };
     try {
       const coach = getUserFromToken(token);

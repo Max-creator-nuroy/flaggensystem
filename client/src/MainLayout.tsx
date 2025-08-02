@@ -2,6 +2,7 @@ import { Outlet } from "react-router-dom";
 import { Grid, GridItem } from "@chakra-ui/react";
 import Navbar from "./components/ui/NavBar/Navbar";
 import SideBar from "./components/ui/NavBar/SideBar";
+import { Toaster } from "./components/ui/toaster";
 
 export default function MainLayout() {
   return (
@@ -13,6 +14,7 @@ export default function MainLayout() {
         </GridItem>
         <GridItem colSpan={{ base: 10, md: 9 }}>
           <Outlet /> {/* Hier kommt der aktuelle Page-Content */}
+          <Toaster></Toaster>
         </GridItem>
       </Grid>
     </>

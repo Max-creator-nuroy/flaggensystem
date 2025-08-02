@@ -6,9 +6,9 @@ const prisma = new PrismaClient();
 
 // GET /users/createCoach
 export const createCoach = async (req: Request, res: Response) => {
-  const { email, password, name, last_name, role } = req.body;
+  const { email,  name, last_name, role, mobileNumber } = req.body;
 
-  if (!email || !password || !name || !last_name || !role) {
+  if (!email || !name || !last_name || !role || !mobileNumber) {
     return res
       .status(400)
       .json({ message: "Alle Felder müssen ausgefüllt sein" });
@@ -20,9 +20,9 @@ export const createCoach = async (req: Request, res: Response) => {
       return res.status(400).json({ message: "User existiert bereits" });
     }
 
-    const hashed = await bcrypt.hash(password, 10);
+    const hashed = await bcrypt.hash(name+last_name, 10);
     const user = await prisma.user.create({
-      data: { email, password: hashed, name, last_name, role },
+      data: { email, password: hashed, name, last_name, role, mobileNumber },
     });
 
     res.status(201).json({ message: "User erstellt", userId: user.id });
@@ -34,15 +34,14 @@ export const createCoach = async (req: Request, res: Response) => {
 export const createUser = async (req: Request, res: Response) => {
   try {
     const coachId = req.params.coachId;
-    const { email, password, name, last_name, isAffiliate } = req.body;
+    const { email, password, name, last_name, isAffiliate, phaseId } = req.body;
 
     const existingUser = await prisma.user.findUnique({ where: { email } });
     if (existingUser) {
       return res.status(400).json({ message: "Benutzer existiert bereits" });
     }
 
-    const hashed = await bcrypt.hash(password, 10);
-    console.log(req.body);
+    const hashed = await bcrypt.hash(name+last_name, 10);
     const newUser = await prisma.user.create({
       data: {
         email,
@@ -51,6 +50,7 @@ export const createUser = async (req: Request, res: Response) => {
         last_name,
         role: "CUSTOMER",
         isAffiliate: isAffiliate != null ? isAffiliate : false,
+        phaseId
       },
     });
 
@@ -83,6 +83,11 @@ export const getUser = async (req: Request, res: Response) => {
     const user = await prisma.user.findUnique({
       where: { id: userId },
       include: {
+        surveys: true,
+        absences: {
+          orderBy: { from: "desc" },
+        },
+        phase: true,
         coachLinks: {
           where: { customerId: userId },
           include: { coach: true },
@@ -90,7 +95,22 @@ export const getUser = async (req: Request, res: Response) => {
         flags: {
           include: {
             requirement: true,
-            escalatedFrom: true,
+            escalatedFrom: {
+              include: {
+                fromFlag: {
+                  include: {
+                    requirement: true,
+                    escalatedFrom: {
+                      include: {
+                        fromFlag: {
+                          include: { requirement: true },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
             escalatedTo: true,
           },
         },
@@ -118,19 +138,52 @@ export const getUser = async (req: Request, res: Response) => {
   }
 };
 
-// PUT /users/:id
+// PATCH /updateUser/:id
 export const updateUser = async (req: Request, res: Response) => {
   const userId = req.params.id;
-  const { name } = req.body;
+
+  // Nur erlaubte Felder extrahieren
+  const {
+    email,
+    password,
+    name,
+    last_name,
+    isAffiliate,
+    mobileNumber,
+    role,
+    coachRules,
+    phaseId,
+    absence,
+  } = req.body;
 
   try {
     const updatedUser = await prisma.user.update({
       where: { id: userId },
-      data: { name },
+      data: {
+        ...(email && { email }),
+        ...(password && { password }),
+        ...(name && { name }),
+        ...(last_name && { last_name }),
+        ...(typeof isAffiliate !== "undefined" && { isAffiliate }),
+        ...(mobileNumber && { mobileNumber }),
+        ...(role && { role }),
+        ...(coachRules && { coachRules }),
+        ...(phaseId && { phaseId }),
+        ...(absence && {
+          absences: {
+            create: {
+              reason: absence.reason,
+              startDate: new Date(absence.startDate),
+              endDate: new Date(absence.endDate),
+            },
+          },
+        }),
+      },
     });
 
     res.json({ message: "User aktualisiert", user: updatedUser });
   } catch (error) {
+    console.error("Fehler beim Aktualisieren des Users:", error);
     res.status(500).json({ error: "Fehler beim Aktualisieren des Users" });
   }
 };
@@ -290,6 +343,10 @@ export const getAllCustomers = async (req: Request, res: Response) => {
     const users = await prisma.user.findMany({
       where: { role: "CUSTOMER" },
       include: {
+        absences: {
+          orderBy: { from: "desc" },
+        },
+        phase: true,
         flags: {
           include: {
             requirement: true, // das lädt zu jeder Flag das zugehörige Requirement
@@ -303,5 +360,67 @@ export const getAllCustomers = async (req: Request, res: Response) => {
     res.json(users);
   } catch (error) {
     res.status(500).json({ error: "Fehler beim Laden der User" });
+  }
+};
+
+export const changePassword = async (req: Request, res: Response) => {
+  const userId = req.params.id;
+  const { currentPassword, newPassword } = req.body;
+
+  if (!currentPassword || !newPassword) {
+    return res.status(400).json({ message: "Aktuelles und neues Passwort sind erforderlich." });
+  }
+
+  try {
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      return res.status(404).json({ message: "User nicht gefunden." });
+    }
+
+    // Aktuelles Passwort prüfen
+    const validPassword = await bcrypt.compare(currentPassword, user.password);
+    if (!validPassword) {
+      return res.status(401).json({ message: "Aktuelles Passwort ist falsch." });
+    }
+
+    // Neues Passwort hashen
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    await prisma.user.update({
+      where: { id: userId },
+      data: { password: hashedPassword },
+    });
+
+    res.json({ message: "Passwort erfolgreich geändert." });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Fehler beim Ändern des Passworts." });
+  }
+};
+
+export const updateEmail = async (req: Request, res: Response) => {
+  const userId = req.params.id;
+  const { email } = req.body;
+
+  if (!email) {
+    return res.status(400).json({ message: "Neue E-Mail ist erforderlich." });
+  }
+
+  try {
+    // Prüfe, ob die neue Email schon existiert
+    const existingUser = await prisma.user.findUnique({ where: { email } });
+    if (existingUser && existingUser.id !== userId) {
+      return res.status(400).json({ message: "Diese E-Mail ist bereits vergeben." });
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: { email },
+    });
+
+    res.json({ message: "E-Mail erfolgreich geändert.", user: updatedUser });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Fehler beim Ändern der E-Mail." });
   }
 };

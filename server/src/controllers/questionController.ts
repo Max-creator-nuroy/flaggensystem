@@ -4,7 +4,7 @@ const prisma = new PrismaClient();
 
 // ✅ Create Question
 export const createQuestion = async (req: Request, res: Response) => {
-  const text = req.body.text;
+  const { text, isRating } = req.body;
   const coachId = req.params.coachId;
 
   if (!text || !coachId) {
@@ -15,6 +15,7 @@ export const createQuestion = async (req: Request, res: Response) => {
     const question = await prisma.question.create({
       data: {
         text,
+        isRating,
         createdByCoachId: coachId,
       },
     });
@@ -27,11 +28,12 @@ export const createQuestion = async (req: Request, res: Response) => {
 };
 
 export const createAdminQuestion = async (req: Request, res: Response) => {
-  const { text } = req.body;
+  const { text, isRating } = req.body;
   try {
     const question = await prisma.question.create({
       data: {
         text,
+        isRating,
         createdByCoachId: null, // ← signalisiert: Admin-Frage
       },
     });

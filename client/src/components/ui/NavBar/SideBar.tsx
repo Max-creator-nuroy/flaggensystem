@@ -42,12 +42,12 @@ export default function SideBar() {
           title="Home"
           target="dashboard/COACH"
         />
-        <NavItem
+        {/* <NavItem
           navSize={navSize}
           icon={FcStatistics}
           title="Statistik"
           target="statistic"
-        />
+        /> */}
         <NavItem
           navSize={navSize}
           icon={BsQuestion}
@@ -100,12 +100,12 @@ export default function SideBar() {
           title="Home"
           target="dashboard/ADMIN"
         />
-        <NavItem
+        {/* <NavItem
           navSize={navSize}
           icon={FcStatistics}
           title="Statistik"
           target="statistic"
-        />
+        /> */}
         <NavItem
           navSize={navSize}
           icon={BsQuestion}

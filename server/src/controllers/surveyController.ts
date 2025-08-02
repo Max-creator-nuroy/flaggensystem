@@ -50,33 +50,34 @@ export const getSurveysByUser = async (req: Request, res: Response) => {
   }
 };
 
-// GET /survey/getCurrentSurvey/:userId
 export const getCurrentSurvey = async (req: Request, res: Response) => {
   const userId = req.params.userId;
 
   try {
-    const survey = await prisma.survey.findFirst({
-      where: {
-        userId,
-        submittedAt: null, // Nur nicht beantwortete Surveys
-      },
-      orderBy: {
-        createdAt: "desc", // Neueste zuerst
-      },
+    // Hole die allerneueste Umfrage des Users, egal ob beantwortet oder nicht
+    const latestSurvey = await prisma.survey.findFirst({
+      where: { userId },
+      orderBy: { createdAt: "desc" },
       include: {
         questions: {
           include: {
-            question: true, // Hole auch den Fragentext usw.
+            question: true,
           },
         },
       },
     });
 
-    if (!survey) {
+    if (!latestSurvey) {
+      return res.status(404).json({ error: "Keine Umfrage gefunden." });
+    }
+
+    // Wenn die letzte Umfrage schon beantwortet wurde, gib nichts zurück
+    if (latestSurvey.submittedAt !== null) {
       return res.status(404).json({ error: "Keine offene Umfrage gefunden." });
     }
 
-    res.json(survey);
+    // Sonst gib die offene Umfrage zurück
+    res.json(latestSurvey);
   } catch (error) {
     console.error("Fehler beim Laden der aktuellen Umfrage:", error);
     res.status(500).json({ error: "Interner Serverfehler" });
@@ -162,14 +163,11 @@ export const createSurveyForUser = async (req: Request, res: Response) => {
   return survey;
 };
 
-// PATCH 
+// PATCH
 export const submitSurveyAnswers = async (req: Request, res: Response) => {
   const surveyId = req.params.surveyId;
-  const { questions } = req.body["answers"];
+  const questions = req.body.answers;
 
-  console.log(req.body);
-  console.log(req.body.answers);
-  console.log(req.body["answers"]);
   try {
     // Optional: check ob der Survey zur User gehört → Sicherheit
     const survey = await prisma.survey.findUnique({
@@ -188,10 +186,19 @@ export const submitSurveyAnswers = async (req: Request, res: Response) => {
           where: { id: q.id },
           data: {
             answer: q.answer,
+            rating: q.rating,
           },
         })
       )
     );
+
+    // Jetzt das Survey selbst updaten → submittedAt setzen
+    await prisma.survey.update({
+      where: { id: surveyId },
+      data: {
+        submittedAt: new Date(), // Zeitstempel auf jetzt
+      },
+    });
 
     return res.json({ message: "Antworten gespeichert", updates });
   } catch (error) {
@@ -329,6 +336,53 @@ export const getSurveyCompletionRateForCustomers = async (
     res.status(200).json(completionRate);
   } catch (error) {
     console.error("Fehler bei getSurveyByCoach:", error);
+    res.status(500).json({ error: "Interner Serverfehler" });
+  }
+};
+
+export const getSurveyCompletionRateForCoaches = async (
+  req: Request,
+  res: Response
+) => {
+  try {
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+    // Alle Coaches mit ihren Surveys der letzten 7 Tage holen
+    const coachesWithSurveys = await prisma.user.findMany({
+      where: {
+        role: "COACH",
+      },
+      select: {
+        id: true,
+        surveys: {
+          where: {
+            createdAt: {
+              gte: sevenDaysAgo,
+            },
+          },
+          select: {
+            submittedAt: true,
+          },
+        },
+      },
+    });
+
+    let totalSurveys = 0;
+    let totalSubmitted = 0;
+
+    for (const coach of coachesWithSurveys) {
+      const surveys = coach.surveys;
+      totalSurveys += surveys.length;
+      totalSubmitted += surveys.filter((s) => s.submittedAt).length;
+    }
+
+    if (totalSurveys === 0) return res.status(200).json(0);
+
+    const completionRate = (totalSubmitted / totalSurveys) * 100;
+    res.status(200).json(completionRate);
+  } catch (error) {
+    console.error("Fehler bei getSurveyCompletionRateForCoaches:", error);
     res.status(500).json({ error: "Interner Serverfehler" });
   }
 };
