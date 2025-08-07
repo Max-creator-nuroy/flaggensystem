@@ -10,6 +10,7 @@ import closeRoutes from "./routes/closeRoutes";
 import phaseRoutes from "./routes/phaseRoutes";
 import absenceRoutes from "./routes/absenceRoutes";
 import flagRoutes from "./routes/flagRoutes";
+import adminRoutes from "./routes/adminRoutes";
 
 const app = express();
 app.listen(3000, () => console.log("Server läuft auf 3000"));
@@ -21,6 +22,7 @@ app.use(express.json());
 
 app.use("/dailyCheck", dailyCheckRoutes);
 app.use("/auth", authRoutes);
+app.use("/admin", adminRoutes);
 app.use("/users", userRoutes);
 app.use("/requirement", requirementRoutes);
 app.use("/question", questionRoutes);
