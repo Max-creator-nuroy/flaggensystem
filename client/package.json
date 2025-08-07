@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && vite build && node replace-api-url.js",
     "lint": "eslint .",
     "preview": "vite preview"
   },
@@ -16,8 +16,13 @@
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
     "@hookform/resolvers": "^5.1.1",
+    "@mui/icons-material": "^7.3.1",
+    "@mui/material": "^7.3.1",
+    "@mui/x-data-grid": "^8.9.2",
     "axios": "^1.10.0",
     "framer-motion": "^12.23.3",
+    "glob": "^11.0.3",
+    "i": "^0.3.7",
     "jwt-decode": "^4.0.0",
     "moment": "^2.30.1",
     "next-themes": "^0.4.6",

@@ -1,6 +1,5 @@
 import getUserFromToken from "@/services/getTokenFromLokal";
 import {
-  Box,
   Stack,
   Heading,
   Text,
@@ -24,7 +23,7 @@ import {
   Textarea,
   Switch,
 } from "@chakra-ui/react";
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { FiCheckCircle } from "react-icons/fi";
 import Moment from "moment";
 import { useSearchParams } from "react-router";

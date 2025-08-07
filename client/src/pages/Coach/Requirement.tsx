@@ -25,15 +25,12 @@ export default function Requirement() {
   const [title, setrequirementTitle] = useState("");
   const [description, setRequirementDescription] = useState("");
   const [rule, setRule] = useState("");
-  const [error, setError] = useState("");
   const token = localStorage.getItem("token");
   const coachId = getUserFromToken(token);
   const [requirementList, setRequirementList] = useState([]);
-  const [coach, setCoach] = useState();
   const [loading, setLoading] = useState(true);
 
   const [phaseName, setPhaseName] = useState("");
-  const [phaseDescription, setPhaseDescription] = useState("");
 
   // Phase erstellen
   const handlePhaseCreate = async () => {
@@ -55,7 +52,6 @@ export default function Requirement() {
       );
       if (res.ok) {
         setPhaseName("");
-        setPhaseDescription("");
         fetchPhases();
       } else {
         alert("Fehler beim Erstellen der Phase");
@@ -67,7 +63,7 @@ export default function Requirement() {
 
   const fetchRequirements = async () => {
     try {
-      const coachResponse = await fetch(
+      await fetch(
         `http://localhost:3000/users/getUser/${coachId.id}`,
         {
           method: "GET",
@@ -79,10 +75,9 @@ export default function Requirement() {
       )
         .then((response) => response.json())
         .then((data) => {
-          setCoach(data);
           setRule(data.coachRules);
         });
-      const response = await fetch(
+      await fetch(
         `http://localhost:3000/requirement/getRequirementByCoach/${coachId.id}`,
         {
           method: "GET",
@@ -133,15 +128,13 @@ export default function Requirement() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
-
     if (title != "" && description != "") {
       const requirement = {
         title,
         description,
       };
       try {
-        const res = await fetch(
+        await fetch(
           `http://localhost:3000/requirement/createRequirement/${coachId.id}`,
           {
             method: "POST",
@@ -151,7 +144,7 @@ export default function Requirement() {
             },
             body: JSON.stringify(requirement),
           }
-        ).then((data) => {
+        ).then(() => {
           setRequirementDescription("");
           setrequirementTitle("");
           fetchRequirements();
@@ -164,11 +157,10 @@ export default function Requirement() {
 
   const handleRuleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
 
     if (rule != "") {
       try {
-        const res = await fetch(
+        await fetch(
           `http://localhost:3000/users/updateUser/${coachId.id}`,
           {
             method: "PATCH",
@@ -194,7 +186,7 @@ export default function Requirement() {
       },
     })
       .then((res) => res.json())
-      .then((data) => fetchRequirements())
+      .then(() => fetchRequirements())
       .catch((err) => console.error(err));
   };
 

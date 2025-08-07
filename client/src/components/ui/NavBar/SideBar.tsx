@@ -9,9 +9,9 @@ import {
   BsPerson,
   BsQuestion,
 } from "react-icons/bs";
-import { FcStatistics } from "react-icons/fc";
 import getUserFromToken from "@/services/getTokenFromLokal";
 import { LuLogOut } from "react-icons/lu";
+import { FcStatistics } from "react-icons/fc";
 // import jwtDecode from "jwt-decode";
 
 export default function SideBar() {

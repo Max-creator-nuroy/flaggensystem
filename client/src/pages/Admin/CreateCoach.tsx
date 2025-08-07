@@ -1,6 +1,5 @@
 // pages/CreateCoach.tsx
 
-import getUserFromToken from "@/services/getTokenFromLokal";
 import {
   Box,
   Button,
@@ -25,7 +24,6 @@ export default function CreateCoach() {
     setLoading(true);
 
     const token = localStorage.getItem("token");
-    const admin = getUserFromToken(token);
 
     const userData = {
       email,
@@ -44,8 +42,6 @@ export default function CreateCoach() {
         },
         body: JSON.stringify(userData),
       });
-
-      const data = await res.json();
 
       if (res.ok) {
 

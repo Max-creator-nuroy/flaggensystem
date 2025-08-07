@@ -194,7 +194,7 @@ export default function CustomerFlags() {
                 <Accordion.ItemContent>
                   {user.flags
                     .filter((flag: any) => flag.escalatedFrom.length === 0)
-                    .map((flag: any, index: number) => (
+                    .map((flag: any) => (
                       <Flex justifyContent={"space-around"}>
                         <Text>{flag.requirement.title}</Text>
                         <Text>{flag.createdAt}</Text>

@@ -1,12 +1,10 @@
 import {
   Box,
-  Button,
   Flex,
   Heading,
   Input,
   Table,
   Text,
-  useBreakpointValue,
   VStack,
 } from "@chakra-ui/react";
 import { useEffect, useState } from "react";
@@ -68,8 +66,6 @@ export default function AdminCustomerList() {
   useEffect(() => {
     fetchCustomer();
   }, []);
-
-  const isMobile = useBreakpointValue({ base: true, md: false });
 
   // erweitertes Filtern nach Suchbegriff UND Status
   const filteredCustomers = customerList.filter((customer: any) => {

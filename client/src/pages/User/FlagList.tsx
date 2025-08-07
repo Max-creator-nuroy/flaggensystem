@@ -1,26 +1,17 @@
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
-  Box,
   Flex,
   Heading,
   Text,
-  Badge,
   Button,
   ButtonGroup,
   Input,
-  Icon,
   Stack,
-  Table,
-  VStack,
-  HStack,
   Spinner,
   Dialog,
   Card,
   Portal,
-  CardHeader,
 } from "@chakra-ui/react";
-import { useColorModeValue } from "@/components/ui/color-mode";
-import { BsFlag } from "react-icons/bs";
 import getUserFromToken from "@/services/getTokenFromLokal";
 
 /**
@@ -33,7 +24,6 @@ import getUserFromToken from "@/services/getTokenFromLokal";
 
 export default function FlagList() {
   const [loading, setLoading] = useState(true);
-  const [userData, setUserData] = useState<any>(null);
   const [flags, setFlags] = useState<any[]>([]);
   const [selectedFlag, setSelectedFlag] = useState<any>(null);
   const [colorFilter, setColorFilter] = useState<
@@ -57,7 +47,6 @@ export default function FlagList() {
     })
       .then((req) => req.json())
       .then((data) => {
-        setUserData(data);
         setFlags(
           (data.flags || []).sort(
             (a: any, b: any) => +new Date(b.createdAt) - +new Date(a.createdAt)
@@ -67,11 +56,8 @@ export default function FlagList() {
       .finally(() => setLoading(false));
   }, [token, user?.id]);
 
-  const hasConnections = (flag: any) =>
-    (flag.escalatedFrom && flag.escalatedFrom.length > 0) ||
-    (flag.escalatedTo && flag.escalatedTo.length > 0);
 
-  const relatedFlags = useMemo(() => {
+  useMemo(() => {
     if (!selectedFlag) return [];
     return flags.filter((f: any) => {
       if (f.id === selectedFlag.id) return false;
@@ -110,13 +96,6 @@ export default function FlagList() {
       green: unlinked.filter((f) => f.color === "GREEN").length,
     };
   }, [flags]);
-
-  const badgeColor = (color: string) =>
-    color === "RED" ? "red" : color === "YELLOW" ? "yellow" : "green";
-
-  const cardBg = useColorModeValue("white", "gray.700");
-  const subtleBg = useColorModeValue("gray.50", "gray.800");
-  const borderCol = useColorModeValue("gray.200", "gray.600");
 
   if (loading) {
     return (
@@ -238,44 +217,8 @@ export default function FlagList() {
 /* ---------- Kleine KPI Cards oben ---------- */
 
 import { SimpleGrid } from "@chakra-ui/react";
-import moment from "moment";
+import moment from "moment";         
 
-function SimpleKPICards({
-  counts,
-}: {
-  counts: { total: number; red: number; yellow: number; green: number };
-}) {
-  const cardBg = useColorModeValue("white", "gray.700");
-  const borderCol = useColorModeValue("gray.200", "gray.600");
-
-  const items = [
-    { label: "Gesamt", value: counts.total, color: "black.500" },
-    { label: "Rot", value: counts.red, color: "red.500" },
-    { label: "Gelb", value: counts.yellow, color: "yellow.500" },
-  ];
-
-  return (
-    <SimpleGrid columns={{ base: 2, md: 4 }} gap={4}>
-      {items.map((it) => (
-        <Box
-          key={it.label}
-          p={4}
-          bg={cardBg}
-          borderWidth="1px"
-          borderColor={borderCol}
-          rounded="md"
-        >
-          <Text fontSize="sm" color="gray.500">
-            {it.label}
-          </Text>
-          <Text fontSize="2xl" fontWeight="bold" color={it.color}>
-            {it.value}
-          </Text>
-        </Box>
-      ))}
-    </SimpleGrid>
-  );
-}
 function collectRequirements(
   flag: any,
   depth = 0

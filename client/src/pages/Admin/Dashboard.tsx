@@ -6,15 +6,12 @@ import {
   GridItem,
   HStack,
   Icon,
-  IconButton,
   Input,
   Progress,
   Table,
   Text,
 } from "@chakra-ui/react";
 import {
-  CgChevronDown,
-  CgChevronUp,
   CgDanger,
   CgProfile,
 } from "react-icons/cg";
@@ -31,10 +28,8 @@ export default function DashboardAdmin() {
   const [cRForCustomers, setCRForCustomers] = useState<number>(0);
   const [cRForCoaches, setCRForCoaches] = useState<number>(0);
   const [countUser, setCountUser] = useState();
-  const [sortAsc, setSortAsc] = useState(true);
   const [atRisk, setAtRisk] = useState<number>(0);
   const [garantyLost, setGarantyLost] = useState<number>(0);
-  const [searchTermCustomer, setSearchTermCustomer] = useState("");
   const [searchTermCoach, setSearchTermCoach] = useState("");
   const navigate = useNavigate();
 
@@ -120,22 +115,12 @@ export default function DashboardAdmin() {
     setCRForCoaches(truncateToTwoDecimals(crc) ?? 0);
   };
 
-  const sortByRole = () => {
-    const sorted = [...customerList].sort((a, b) =>
-      sortAsc ? a.role.localeCompare(b.role) : b.role.localeCompare(a.role)
-    );
-    setCustomerList(sorted);
-    setSortAsc(!sortAsc);
-  };
 
   useEffect(() => {
     fetchCoach();
     fetchCustomer();
   }, []);
 
-  const filteredCustomers = customerList.filter((customer: any) =>
-    customer.name.toLowerCase().startsWith(searchTermCustomer.toLowerCase())
-  );
   const filteredCoches = coachList.filter((coach: any) =>
     coach.name.toLowerCase().startsWith(searchTermCoach.toLowerCase())
   );
@@ -368,13 +353,6 @@ export default function DashboardAdmin() {
         </Table.Root>
       </Table.ScrollArea>
 
-      <Input
-        ml={5}
-        placeholder="Nach namen Suchen"
-        maxWidth={{ base: "20vh", sm: "40vh", lg: "60vh" }}
-        type="text"
-        onChange={(e) => setSearchTermCustomer(e.target.value)}
-      ></Input>
       <hr
         style={{
           border: "none",

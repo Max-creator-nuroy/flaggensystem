@@ -1,7 +1,6 @@
-import { createBrowserRouter } from "react-router-dom";
+import { createBrowserRouter, Navigate } from "react-router-dom";
 import MainLayout from "../MainLayout";
 import Login from "../pages/Login";
-import Test from "../pages/Test";
 import DashboardUser from "../pages/User/DashboardUser";
 import DashboardAdmin from "../pages/Admin/Dashboard";
 import DashboardCoach from "../pages/Coach/DashboardCoach";
@@ -20,6 +19,7 @@ import LeadList from "@/components/ui/LeadList";
 import CreateUser from "@/pages/Coach/createUser";
 import CreateCoach from "@/pages/Admin/CreateCoach";
 import ProfilePage from "@/pages/ProfilPage";
+import CoachStats from "@/pages/Admin/CoachStats";
 
 export const router = createBrowserRouter([
   {
@@ -27,14 +27,15 @@ export const router = createBrowserRouter([
     element: <Login />,
   },
   {
-    path: "/test",
-    element: <Test />,
+    path: "",
+    element: <Navigate to="/login" replace />, // Leerer Pfad leitet zu Login weiter
   },
   { path: "unauthorized", element: <Unauthorized /> },
   {
     path: "/",
     element: <MainLayout />, // 🧠 Layout mit Navbar & Sidebar
     children: [
+      { index: true, element: <Navigate to="/login" replace /> },
       {
         element: (
           <RoleProtectedRoute allowedRoles={["COACH", "ADMIN", "CUSTOMER"]} />
@@ -69,6 +70,7 @@ export const router = createBrowserRouter([
         element: <RoleProtectedRoute allowedRoles={["ADMIN"]} />,
         children: [
           { path: "dashboard/ADMIN", element: <DashboardAdmin /> },
+          { path: "statistic", element: <CoachStats /> },
           { path: "dashboard/COACH", element: <DashboardCoach /> },
           { path: "dashboard/CUSTOMER", element: <DashboardUser /> },
           { path: "customerList/ADMIN", element: <AdminCustomerList /> },

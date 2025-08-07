@@ -6,8 +6,6 @@ import {
   Heading,
   Input,
   Stack,
-  Switch,
-  Select,
   Text,
   Checkbox,
 } from "@chakra-ui/react";

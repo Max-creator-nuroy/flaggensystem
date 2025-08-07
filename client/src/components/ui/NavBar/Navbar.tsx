@@ -27,7 +27,7 @@ export default function Navbar() {
       <Heading as="h2">Flaggensystem</Heading>
       <Spacer />
       <Text>
-        {user.name} {user.last_name}
+        {user?.name} {user?.last_name}
       </Text>
       <Link to="/profilePage" style={{ textDecoration: "none" }}>
         <Button colorScheme="blue" bg="none">

@@ -1,8 +1,6 @@
 import {
-  Center,
   Text,
   Stack,
-  Image,
   Heading,
   Field,
   FieldLabel,
@@ -11,7 +9,6 @@ import {
   Container,
   Flex,
 } from "@chakra-ui/react";
-import logo from "../assets/react.svg";
 import { Form, Link, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { PasswordInput } from "@/components/ui/password-input";
@@ -26,13 +23,13 @@ export default function Login() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    
+
     const res = await fetch("http://localhost:3000/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password }),
     });
-    
+
     if (res.ok) {
       const data = await res.json();
       localStorage.setItem("token", data.token);
@@ -45,9 +42,14 @@ export default function Login() {
   };
 
   return (
-    <Flex h="100vh" bg="gray.200" flexDirection={"column"} alignItems={"center"}>
+    <Flex
+      h="100vh"
+      bg="gray.200"
+      align="center"
+      justify="center"
+      flexDirection="column"
+    >
       <Stack boxShadow="md" bg="blue.300" p="20" rounded="sm" display="flex">
-        <Image src={logo} maxW="70px" mb="8" mx="auto" alt="Logo" />
         <Heading as="h1" display="flex">
           Log in
         </Heading>
