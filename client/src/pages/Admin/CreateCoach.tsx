@@ -10,6 +10,7 @@ import {
   Text,
 } from "@chakra-ui/react";
 import React, { useState } from "react";
+import { apiCall } from "@/services/apiCall";
 
 export default function CreateCoach() {
   const [email, setEmail] = useState("");
@@ -34,27 +35,29 @@ export default function CreateCoach() {
     };
 
     try {
-      const res = await fetch(`http://localhost:3000/users/createCoach/`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+      const data = await apiCall(
+        `http://localhost:3000/users/createCoach/`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(userData),
         },
-        body: JSON.stringify(userData),
-      });
-
-      if (res.ok) {
-
-
-        // Felder zurücksetzen
+        {
+          loadingTitle: "Erstelle Coach…",
+          successTitle: "Coach erstellt",
+          successDescription: `${name} ${lastName}`,
+          errorTitle: "Coach nicht erstellt",
+        }
+      );
+      if (data) {
         setEmail("");
         setName("");
         setLastName("");
         setMobileNumber("");
-      } else {
-      
       }
-    } catch {
     } finally {
       setLoading(false);
     }

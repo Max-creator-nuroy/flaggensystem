@@ -10,6 +10,7 @@ import {
   Checkbox,
 } from "@chakra-ui/react";
 import React, { useEffect, useState } from "react";
+import { apiCall } from "@/services/apiCall";
 
 export default function CreateUser() {
   const [email, setEmail] = useState("");
@@ -53,7 +54,7 @@ export default function CreateUser() {
     };
 
     try {
-      const res = await fetch(
+      const data = await apiCall(
         `http://localhost:3000/users/createUser/${coach.id}`,
         {
           method: "POST",
@@ -62,12 +63,15 @@ export default function CreateUser() {
             Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify(userData),
+        },
+        {
+          loadingTitle: "Erstelle Benutzer…",
+          successTitle: "Benutzer erstellt",
+          successDescription: email,
+          errorTitle: "Benutzer fehlgeschlagen",
         }
       );
-      const data = await res.json();
-
-      if (res.ok) {
-        alert(`✅ Benutzer erstellt – ID: ${data.id}`);
+      if (data) {
         setEmail("");
         setPassword("");
         setName("");
@@ -76,11 +80,7 @@ export default function CreateUser() {
         setMobileNumber("");
         setIsAffiliate(false);
         setIsCustomer(false);
-      } else {
-        alert(`Fehler: ${data.message || "Unbekannter Fehler"}`);
       }
-    } catch {
-      alert("Netzwerkfehler");
     } finally {
       setLoading(false);
     }

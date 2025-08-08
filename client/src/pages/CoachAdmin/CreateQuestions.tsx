@@ -1,4 +1,5 @@
 import getUserFromToken from "@/services/getTokenFromLokal";
+import { toaster } from "@/components/ui/toaster";
 import {
   Box,
   Button,
@@ -46,6 +47,7 @@ export default function CreateQuestions() {
         : `http://localhost:3000/question/getQuestionsByAdmin`;
 
     try {
+  toaster.create({ title: "Lade Fragen…", type: "loading" });
       const response = await fetch(url, {
         headers: {
           "Content-Type": "application/json",
@@ -54,8 +56,10 @@ export default function CreateQuestions() {
       });
       const data = await response.json();
       setQuestionList(data || []);
+      toaster.create({ title: "Fragen geladen", type: "success" });
     } catch (err) {
       console.error("Fehler beim Laden der Fragen", err);
+      toaster.create({ title: "Fehler beim Laden", type: "error" });
     } finally {
       setLoading(false);
     }
@@ -70,6 +74,7 @@ export default function CreateQuestions() {
         : `http://localhost:3000/question/createAdminQuestion`;
 
     try {
+  toaster.create({ title: "Erstelle Frage…", type: "loading" });
       await fetch(url, {
         method: "POST",
         headers: {
@@ -82,8 +87,10 @@ export default function CreateQuestions() {
       setQuestion("");
       setIsRating(false);
       fetchQuestions();
+      toaster.create({ title: "Frage erstellt", description: question, type: "success" });
     } catch (err) {
       console.error("Fehler beim Erstellen der Frage", err);
+      toaster.create({ title: "Fehler beim Erstellen", type: "error" });
     }
   };
 
@@ -97,8 +104,10 @@ export default function CreateQuestions() {
         },
       });
       fetchQuestions();
+      toaster.create({ title: "Frage Status geändert", type: "success" });
     } catch (err) {
       console.error("Fehler beim Löschen", err);
+      toaster.create({ title: "Fehler beim Ändern", type: "error" });
     }
   };
 
@@ -246,10 +255,11 @@ export default function CreateQuestions() {
             </Box>
             <Flex justifyContent="space-between">
               <Button variant="ghost" onClick={()=> setBroadcastOpen(false)}>Abbrechen</Button>
-              <Button colorScheme="purple" onClick={async ()=> {
+        <Button colorScheme="purple" onClick={async ()=> {
                 if(broadcastQuestions.length===0) return;
                 try {
-                  await fetch("http://localhost:3000/surveys/broadcastCustomSurvey", {
+                  toaster.create({ title: "Sende Umfrage…", type: "loading" });
+          await fetch("http://localhost:3000/surveys/broadcastCustomSurvey", {
                     method: 'POST',
                     headers: { 'Content-Type':'application/json', Authorization:`Bearer ${token}`},
                     body: JSON.stringify({ targetRole, questions: broadcastQuestions, comment: broadcastComment || undefined })
@@ -257,8 +267,10 @@ export default function CreateQuestions() {
                   setBroadcastQuestions([]);
                   setBroadcastComment("");
                   setBroadcastOpen(false);
+          toaster.create({ title: "Umfrage gesendet", description: `${broadcastQuestions.length} Fragen an ${targetRole}`, type: "success" });
                 } catch(err){
                   console.error('Fehler beim Broadcast', err);
+          toaster.create({ title: "Fehler beim Senden", type: "error" });
                 }
               }}>Umfrage erstellen & senden</Button>
             </Flex>

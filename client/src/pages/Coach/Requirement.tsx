@@ -20,6 +20,7 @@ import { useEffect, useState } from "react";
 import { BsX } from "react-icons/bs";
 import { CgCheck } from "react-icons/cg";
 import { Form } from "react-router";
+import { apiCall } from "@/services/apiCall";
 
 export default function Requirement() {
   const [title, setrequirementTitle] = useState("");
@@ -34,30 +35,27 @@ export default function Requirement() {
 
   // Phase erstellen
   const handlePhaseCreate = async () => {
-    if (!phaseName) return alert("Bitte Phase Name eingeben");
-
-    try {
-      const res = await fetch(
-        `http://localhost:3000/phase/createPhase/${coachId.id}`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            name: phaseName,
-          }),
-        }
-      );
-      if (res.ok) {
-        setPhaseName("");
-        fetchPhases();
-      } else {
-        alert("Fehler beim Erstellen der Phase");
+    if (!phaseName) return;
+    const data = await apiCall(
+      `http://localhost:3000/phase/createPhase/${coachId.id}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ name: phaseName }),
+      },
+      {
+        loadingTitle: "Phase wird erstellt…",
+        successTitle: "Phase erstellt",
+        successDescription: phaseName,
+        errorTitle: "Phase fehlgeschlagen",
       }
-    } catch {
-      alert("Netzwerkfehler");
+    );
+    if (data) {
+      setPhaseName("");
+      fetchPhases();
     }
   };
 
@@ -133,24 +131,27 @@ export default function Requirement() {
         title,
         description,
       };
-      try {
-        await fetch(
-          `http://localhost:3000/requirement/createRequirement/${coachId.id}`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify(requirement),
-          }
-        ).then(() => {
-          setRequirementDescription("");
-          setrequirementTitle("");
-          fetchRequirements();
-        });
-      } catch (error) {
-        alert("Speichern fehlgeschlagen");
+      const data = await apiCall(
+        `http://localhost:3000/requirement/createRequirement/${coachId.id}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(requirement),
+        },
+        {
+          loadingTitle: "Kriterium erstellen…",
+          successTitle: "Kriterium erstellt",
+          successDescription: title,
+          errorTitle: "Kriterium fehlgeschlagen",
+        }
+      );
+      if (data) {
+        setRequirementDescription("");
+        setrequirementTitle("");
+        fetchRequirements();
       }
     }
   };
@@ -159,58 +160,62 @@ export default function Requirement() {
     e.preventDefault();
 
     if (rule != "") {
-      try {
-        await fetch(
-          `http://localhost:3000/users/updateUser/${coachId.id}`,
-          {
-            method: "PATCH",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify({ coachRules: rule }),
-          }
-        );
-      } catch (error) {
-        alert("Speichern fehlgeschlagen");
-      }
-    }
-  };
-
-  const deleteRequirement = async (rId: any) => {
-    fetch(`http://localhost:3000/requirement/deleteRequirement/${rId}`, {
-      method: "DELETE",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-    })
-      .then((res) => res.json())
-      .then(() => fetchRequirements())
-      .catch((err) => console.error(err));
-  };
-
-  const deletePhase = async (phaseId: string) => {
-    try {
-      const res = await fetch(
-        `http://localhost:3000/phase/deletePhase/${phaseId}`,
+      await apiCall(
+        `http://localhost:3000/users/updateUser/${coachId.id}`,
         {
-          method: "PATCH", // Patch, weil wir nur isDeleted setzen
+          method: "PATCH",
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
+          body: JSON.stringify({ coachRules: rule }),
+        },
+        {
+          loadingTitle: "Regeln speichern…",
+          successTitle: "Regeln gespeichert",
+          errorTitle: "Regeln fehlgeschlagen",
+          suppressToast: false,
         }
       );
-
-      if (res.ok) {
-        fetchPhases(); // Liste neu laden
-      } else {
-        alert("Fehler beim Löschen der Phase");
-      }
-    } catch {
-      alert("Netzwerkfehler beim Löschen");
     }
+  };
+
+  const deleteRequirement = async (rId: any) => {
+    const data = await apiCall(
+      `http://localhost:3000/requirement/deleteRequirement/${rId}`,
+      {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      },
+      {
+        loadingTitle: "Ändere Status…",
+        successTitle: "Status geändert",
+        errorTitle: "Änderung fehlgeschlagen",
+      }
+    );
+    if (data) fetchRequirements();
+  };
+
+  const deletePhase = async (phaseId: string) => {
+    const data = await apiCall(
+      `http://localhost:3000/phase/deletePhase/${phaseId}`,
+      {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      },
+      {
+        loadingTitle: "Lösche Phase…",
+        successTitle: "Phase gelöscht",
+        errorTitle: "Löschen fehlgeschlagen",
+      }
+    );
+    if (data) fetchPhases();
   };
 
   const RequirementCard = ({ requirement }: { requirement: any }) => (

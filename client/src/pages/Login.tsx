@@ -13,6 +13,7 @@ import { Form, Link, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { PasswordInput } from "@/components/ui/password-input";
 import getUserFromToken from "@/services/getTokenFromLokal";
+import { toaster } from "@/components/ui/toaster";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -24,20 +25,37 @@ export default function Login() {
     e.preventDefault();
     setError("");
 
-    const res = await fetch("http://localhost:3000/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
-    });
+    let toastId: any;
+    try {
+      toastId = toaster.create({ title: "Login…", type: "loading" });
+      const res = await fetch("http://localhost:3000/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
 
-    if (res.ok) {
-      const data = await res.json();
-      localStorage.setItem("token", data.token);
-      const user = getUserFromToken(data.token);
-      navigate(`/dashboard/${user.role}`)
-    } else {
-      const data = await res.json();
-      setError(data.message || "Login fehlgeschlagen");
+      if (res.ok) {
+        const data = await res.json();
+        localStorage.setItem("token", data.token);
+        const user = getUserFromToken(data.token);
+        toaster.create({
+          title: "Login erfolgreich",
+          description: `Willkommen ${user.name || ""}`,
+          type: "success",
+        });
+        navigate(`/dashboard/${user.role}`);
+      } else {
+        const data = await res.json();
+        const msg = data.message || "Login fehlgeschlagen";
+        setError(msg);
+        toaster.create({ title: "Login fehlgeschlagen", description: msg, type: "error" });
+      }
+    } catch (err: any) {
+      const msg = "Netzwerkfehler";
+      setError(msg);
+      toaster.create({ title: "Fehler", description: msg, type: "error" });
+    } finally {
+      if (toastId) toaster.dismiss(toastId);
     }
   };
 
