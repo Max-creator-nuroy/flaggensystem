@@ -13,6 +13,7 @@ import {
   getCurrentSurvey,
   getSurveyCompletionRateForCoaches,
 } from "../controllers/surveyController";
+import { broadcastCustomSurvey } from "../controllers/surveyController";
 import { authenticateToken } from "../middleware/authMiddleware";
 
 const router = Router();
@@ -33,5 +34,10 @@ router.get("/getSurveyCompletionRateForCoaches", authenticateToken, getSurveyCom
 router.get("/getSurveyCompletionRateForCustomersByCoach/:coachId", authenticateToken, getSurveyCompletionRateForCustomersByCoach)
 
 router.delete("/deleteSurvey/:surveyId", authenticateToken, deleteSurvey);
+router.post(
+  "/broadcastCustomSurvey",
+  authenticateToken,
+  broadcastCustomSurvey
+);
 
 export default router;

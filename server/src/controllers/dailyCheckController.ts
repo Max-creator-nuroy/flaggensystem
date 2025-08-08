@@ -9,6 +9,18 @@ const prisma = new PrismaClient();
 export const createDailyCheck = async (req: Request, res: Response) => {
   try {
     const userId = req.params.userId;
+
+    // User aus DB holen
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      return res.status(404).json({ message: "User nicht gefunden" });
+    }
+    if (!user.isCustomer) {
+      return res
+        .status(403)
+        .json({ message: "Nur Kunden dürfen DailyChecks erstellen" });
+    }
+
     const videoFile: any = req.file;
 
     //zuerst das Video erstellen
@@ -105,6 +117,10 @@ export const getDailyChecksByUser = async (req: Request, res: Response) => {
   const { userId } = req.params;
 
   try {
+    const auth: any = (req as any).user;
+    if (!auth?.isCustomer && auth?.id !== userId) {
+      return res.status(403).json({ message: "Keine Berechtigung für DailyChecks" });
+    }
     const dailyChecks = await prisma.dailyCheck.findMany({
       where: { userId },
       orderBy: { date: "desc" },
@@ -189,7 +205,7 @@ const getAvailableFlags = async (userId: string, color: FlagColor) => {
 
 export const checkMissedDailyChecks = async (req: Request, res: Response) => {
   try {
-    const users = await prisma.user.findMany();
+    const users = await prisma.user.findMany({ where: { isCustomer: true } });
 
     for (const user of users) {
       // Hole alle vorhandenen DailyChecks (z.B. der letzten 30 Tage)

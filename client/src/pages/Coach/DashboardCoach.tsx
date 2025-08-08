@@ -71,6 +71,7 @@ export default function DashboardCoach() {
       });
       setAtRisk(risk);
       setGarantyLost(lost);
+      setLoading(false);
 
       // Survey Completion
       const resCR = await fetch(
@@ -334,9 +335,6 @@ export default function DashboardCoach() {
                         </Table.Cell>
                         <Table.Cell>
                           <Flex justifyContent="end">
-                            <Text color="green.500">
-                              {countColor(customer, "GREEN")}
-                            </Text>
                             <Text color="yellow.500" ml={2}>
                               {countColor(customer, "YELLOW")}
                             </Text>

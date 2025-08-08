@@ -11,7 +11,7 @@ import {
 } from "react-icons/bs";
 import getUserFromToken from "@/services/getTokenFromLokal";
 import { LuLogOut } from "react-icons/lu";
-import { FcStatistics } from "react-icons/fc";
+//import { FcStatistics } from "react-icons/fc";
 // import jwtDecode from "jwt-decode";
 
 export default function SideBar() {

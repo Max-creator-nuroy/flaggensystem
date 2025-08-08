@@ -19,6 +19,7 @@ export default function CreateUser() {
   const [role, setRole] = useState("USER");
   const [mobileNumber, setMobileNumber] = useState("");
   const [isAffiliate, setIsAffiliate] = useState(false);
+  const [isCustomer, setIsCustomer] = useState(false);
   const [loading, setLoading] = useState(false);
   const [phases, setPhases] = useState([]);
   const [selectedPhaseId, setSelectedPhaseId] = useState();
@@ -46,6 +47,7 @@ export default function CreateUser() {
       last_name: lastName,
       role,
       isAffiliate,
+      isCustomer,
       mobileNumber,
       phaseId: selectedPhaseId,
     };
@@ -73,6 +75,7 @@ export default function CreateUser() {
         setRole("USER");
         setMobileNumber("");
         setIsAffiliate(false);
+        setIsCustomer(false);
       } else {
         alert(`Fehler: ${data.message || "Unbekannter Fehler"}`);
       }
@@ -108,6 +111,16 @@ export default function CreateUser() {
               <Checkbox.HiddenInput />
               <Checkbox.Control />
               <Checkbox.Label>Affiliate</Checkbox.Label>
+            </Checkbox.Root>
+          </Box>
+          <Box>
+            <Checkbox.Root
+              checked={isCustomer}
+              onCheckedChange={(e: any) => setIsCustomer(!!e.checked)}
+            >
+              <Checkbox.HiddenInput />
+              <Checkbox.Control />
+              <Checkbox.Label>Kunde</Checkbox.Label>
             </Checkbox.Root>
           </Box>
           <Box>

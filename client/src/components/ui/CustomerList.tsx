@@ -1,6 +1,7 @@
 import getUserFromToken from "@/services/getTokenFromLokal";
 import {
   Box,
+  Button,
   Flex,
   Heading,
   Input,
@@ -72,9 +73,8 @@ export default function AdminCustomerList() {
   // erweitertes Filtern nach Suchbegriff UND Status
   const filteredCustomers = customerList.filter((customer: any) => {
     // Suche filtern
-    const fullText = `${customer.name} ${customer.last_name} ${
-      customer.mobileNumber
-    } ${customer.isAffiliate ? "Affiliate" : "Kunde"}`.toLowerCase();
+    const fullText = `${customer.name} ${customer.last_name} ${customer.mobileNumber
+      } ${customer.isAffiliate ? "Affiliate" : "Kunde"}`.toLowerCase();
     if (!fullText.includes(searchTerm.toLowerCase())) return false;
 
     // Filter nach Flag-Status
@@ -126,6 +126,15 @@ export default function AdminCustomerList() {
             >
               Garantie verloren: {garantyLost}
             </Text>
+            <Flex justifyContent={"end"}>
+              <Button
+                onClick={() => {
+                  navigate(`/createUser`);
+                }}
+              >
+                Kunde anlegen
+              </Button>
+            </Flex>
           </Flex>
         </VStack>
       </Flex>

@@ -45,6 +45,27 @@ export const createAdminQuestion = async (req: Request, res: Response) => {
   }
 };
 
+// ⚙️ Helper (nicht als Route direkt) zum Erstellen temporärer Fragen für einen einmaligen Survey Broadcast
+export const createTemporaryQuestions = async (
+  questions: { text: string; isRating: boolean; createdByCoachId?: string | null }[],
+  createdByCoachId?: string | null
+) => {
+  if (!questions.length) return [];
+  const created = await prisma.$transaction(
+    questions.map((q) =>
+      prisma.question.create({
+        data: {
+          text: q.text,
+          isRating: q.isRating,
+          createdByCoachId: createdByCoachId ?? q.createdByCoachId ?? null,
+          // isTemporary: true, // ← Feld nach Migration aktivieren
+        },
+      })
+    )
+  );
+  return created;
+};
+
 // ✅ Get All Questions
 export const getQuestions = async (_req: Request, res: Response) => {
   try {

@@ -16,7 +16,6 @@ import {
   IconButton,
   Select,
   createListCollection,
-  Accordion,
 } from "@chakra-ui/react";
 import { Portal } from "@chakra-ui/react";
 import { BsStar } from "react-icons/bs";
@@ -25,6 +24,7 @@ import getUserFromToken from "@/services/getTokenFromLokal";
 import { useColorModeValue } from "@/components/ui/color-mode";
 
 type TimeFilter = "THIS_WEEK" | "LAST_WEEK" | "CUSTOM";
+type GroupMode = "BY_USER" | "BY_DATE" | "FLAT_SURVEYS";
 
 type SurveyQuestion = {
   id: string;
@@ -52,6 +52,9 @@ export default function SurveyAnswers() {
   const [search, setSearch] = useState("");
   const [favorites, setFavorites] = useState<string[]>(
     JSON.parse(localStorage.getItem("faqFavorites") || "[]")
+  );
+  const [groupMode, setGroupMode] = useState<GroupMode>(
+    (localStorage.getItem("surveyGroupMode") as GroupMode) || "BY_USER"
   );
 
   const [timeFilter, setTimeFilter] = useState<TimeFilter>(
@@ -205,154 +208,216 @@ export default function SurveyAnswers() {
     navigator.clipboard.writeText(text);
   };
 
+  // Gruppierungen vorbereiten
+  const groupedByUser = useMemo(() => {
+    if (groupMode !== "BY_USER") return [] as { user: Survey["user"]; surveys: Survey[] }[];
+    const map = new Map<string, { user: Survey["user"]; surveys: Survey[] }>();
+    searchedSurveys.forEach((s) => {
+      if (!map.has(s.user.id)) map.set(s.user.id, { user: s.user, surveys: [] });
+      map.get(s.user.id)!.surveys.push(s);
+    });
+    return Array.from(map.values()).sort((a,b)=> a.user.name.localeCompare(b.user.name));
+  }, [searchedSurveys, groupMode]);
+
+  const groupedByDate = useMemo(() => {
+    if (groupMode !== "BY_DATE") return [] as { date: string; surveys: Survey[] }[];
+    const map = new Map<string, Survey[]>();
+    searchedSurveys.forEach((s) => {
+      const d = new Date(s.submittedAt ?? s.createdAt);
+      const key = d.toLocaleDateString("de-DE");
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(s);
+    });
+    return Array.from(map.entries())
+      .map(([date, surveys]) => ({ date, surveys: surveys.sort((a,b)=> new Date(b.submittedAt ?? b.createdAt).getTime()- new Date(a.submittedAt ?? a.createdAt).getTime()) }))
+      .sort((a,b)=> new Date(b.date.split('.').reverse().join('-')).getTime() - new Date(a.date.split('.').reverse().join('-')).getTime());
+  }, [searchedSurveys, groupMode]);
+
+  const flatSurveys = useMemo(() => {
+    if (groupMode !== "FLAT_SURVEYS") return [] as Survey[];
+    return [...searchedSurveys].sort((a,b)=> new Date(b.submittedAt ?? b.createdAt).getTime() - new Date(a.submittedAt ?? a.createdAt).getTime());
+  }, [searchedSurveys, groupMode]);
+
   return (
-    <Box maxW="1200px" mx="auto" p={6}>
-      <Heading textAlign="center" mb={2}>
-        Umfragen
-      </Heading>
-      <Text textAlign="center" color="gray.500">
-        {coach.role === "COACH" ? "Coach-Ansicht" : "Admin-Ansicht"}
-      </Text>
-
-      {/* Filter */}
-      <Stack mt={6}>
-        <Select.Root
-          collection={timeFilters}
-          value={[timeFilter]}
-          onValueChange={({ value: [val] }) => {
-            setTimeFilter(val as TimeFilter);
-            localStorage.setItem("timeFilter", val as string);
-          }}
-        >
-          <Select.HiddenSelect name="timeFilter" />
-          <Select.Label>Zeitraum wählen</Select.Label>
-          <Select.Trigger>
-            <Select.ValueText />
-          </Select.Trigger>
-          <Portal>
-            <Select.Positioner>
-              <Select.Content>
-                {timeFilters.items.map((item) => (
-                  <Select.Item key={item.value} item={item}>
-                    {item.label}
-                    <Select.ItemIndicator />
-                  </Select.Item>
-                ))}
-              </Select.Content>
-            </Select.Positioner>
-          </Portal>
-        </Select.Root>
-
-        {timeFilter === "CUSTOM" && (
-          <Flex gap={3} wrap="wrap">
-            <Input
-              type="date"
-              value={customFrom}
-              onChange={(e) => {
-                setCustomFrom(e.target.value);
-                localStorage.setItem("timeFilterFrom", e.target.value);
+    <Flex alignItems="flex-start" p={0} gap={0} minH="calc(100vh - 80px)">
+      {/* Sidebar */}
+      <Box w={{ base: "100%", md: "280px" }} borderRight={{ md: "1px solid" }} borderColor={borderCol} p={6} position="sticky" top={0} maxH="100vh" overflowY="auto" bg="gray.50">
+        <Heading size="md" mb={1}>Umfragen</Heading>
+        <Text fontSize="sm" color="gray.500" mb={4}>{coach.role === "COACH" ? "Coach-Ansicht" : "Admin-Ansicht"}</Text>
+        <Stack gap={4}>
+          <Box>
+            <Text fontSize="sm" fontWeight="semibold" mb={1}>Zeitraum</Text>
+            <Select.Root
+              collection={timeFilters}
+              value={[timeFilter]}
+              onValueChange={({ value: [val] }) => {
+                setTimeFilter(val as TimeFilter);
+                localStorage.setItem("timeFilter", val as string);
               }}
-            />
-            <Input
-              type="date"
-              value={customTo}
-              onChange={(e) => {
-                setCustomTo(e.target.value);
-                localStorage.setItem("timeFilterTo", e.target.value);
-              }}
-            />
-          </Flex>
-        )}
-
-        <Input
-          placeholder="Suche (Name, Frage, Antwort)…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-      </Stack>
-
-      {/* Favoriten */}
-      {favoriteQuestions.length > 0 && (
-        <Card.Root mt={6}>
-          <CardHeader>
-            <Heading size="md">Favoriten</Heading>
-          </CardHeader>
-          <CardBody>
-            <Stack>
-              {favoriteQuestions.map(({ q, user }) => (
-                <QuestionItem
-                  key={q.id}
-                  q={q}
-                  user={user}
-                  borderCol={borderCol}
-                  onToggle={() => toggleFavorite(q.id)}
-                  onCopy={() => copy(q.answer)}
-                  isFav={true}
-                />
-              ))}
-            </Stack>
-          </CardBody>
-        </Card.Root>
-      )}
-
-      {/* Hauptumfragen */}
-      <Box mt={8}>
-        {loading ? (
-          <Flex justify="center">
-            <Spinner />
-          </Flex>
-        ) : searchedSurveys.length === 0 ? (
-          <Text>Keine Umfragen gefunden.</Text>
-        ) : (
-          <Accordion.Root collapsible>
-            {searchedSurveys.map((s) => (
-              <Accordion.Item key={s.id} value={s.id}>
-                <Accordion.ItemTrigger>
-                  <Flex justify="space-between" p={3}>
-                    <Box>
-                      <Text fontWeight="bold">
-                        {s.user.name} {s.user.last_name}
-                      </Text>
-                      <Text fontSize="sm" color="gray.500">
-                        {new Date(s.submittedAt ?? s.createdAt).toLocaleString(
-                          "de-DE"
-                        )}
-                      </Text>
-                    </Box>
-                    <Badge>{s.questions.length} Fragen</Badge>
-                  </Flex>
-                </Accordion.ItemTrigger>
-                <Accordion.ItemContent
-                  style={{
-                    border: `1px solid ${borderCol}`,
-                    borderTop: "none",
-                    borderRadius: "0 0 8px 8px",
-                    padding: "16px",
-                    marginBottom: "12px",
+            >
+              <Select.HiddenSelect name="timeFilter" />
+              <Select.Trigger>
+                <Select.ValueText />
+              </Select.Trigger>
+              <Portal>
+                <Select.Positioner>
+                  <Select.Content>
+                    {timeFilters.items.map((item) => (
+                      <Select.Item key={item.value} item={item}>
+                        {item.label}
+                        <Select.ItemIndicator />
+                      </Select.Item>
+                    ))}
+                  </Select.Content>
+                </Select.Positioner>
+              </Portal>
+            </Select.Root>
+            {timeFilter === "CUSTOM" && (
+              <Stack mt={2} gap={2}>
+                <Input
+                  size="sm"
+                  type="date"
+                  value={customFrom}
+                  onChange={(e) => {
+                    setCustomFrom(e.target.value);
+                    localStorage.setItem("timeFilterFrom", e.target.value);
                   }}
-                >
-                  <Stack>
-                    {s.questions
-                      .filter((q) => !q.question.isDeleted)
-                      .map((q) => (
-                        <QuestionItem
-                          key={q.id}
-                          q={q}
-                          user={s.user}
-                          borderCol={borderCol}
-                          onToggle={() => toggleFavorite(q.id)}
-                          onCopy={() => copy(q.answer)}
-                          isFav={favorites.includes(q.id)}
-                        />
-                      ))}
-                  </Stack>
-                </Accordion.ItemContent>
-              </Accordion.Item>
+                />
+                <Input
+                  size="sm"
+                  type="date"
+                  value={customTo}
+                  onChange={(e) => {
+                    setCustomTo(e.target.value);
+                    localStorage.setItem("timeFilterTo", e.target.value);
+                  }}
+                />
+              </Stack>
+            )}
+          </Box>
+          <Box>
+            <Text fontSize="sm" fontWeight="semibold" mb={1}>Gruppierung</Text>
+            <Select.Root
+              collection={createListCollection({
+                items: [
+                  { label: "Nach Nutzer", value: "BY_USER" },
+                  { label: "Nach Datum", value: "BY_DATE" },
+                  { label: "Alle Surveys", value: "FLAT_SURVEYS" },
+                ],
+              })}
+              value={[groupMode]}
+              onValueChange={({ value: [val] }) => {
+                setGroupMode(val as GroupMode);
+                localStorage.setItem("surveyGroupMode", val as string);
+              }}
+            >
+              <Select.HiddenSelect name="groupMode" />
+              <Select.Trigger>
+                <Select.ValueText />
+              </Select.Trigger>
+              <Portal>
+                <Select.Positioner>
+                  <Select.Content>
+                    <Select.Item item={{ label: "Nach Nutzer", value: "BY_USER" }}>Nach Nutzer<Select.ItemIndicator/></Select.Item>
+                    <Select.Item item={{ label: "Nach Datum", value: "BY_DATE" }}>Nach Datum<Select.ItemIndicator/></Select.Item>
+                    <Select.Item item={{ label: "Alle Surveys", value: "FLAT_SURVEYS" }}>Alle Surveys<Select.ItemIndicator/></Select.Item>
+                  </Select.Content>
+                </Select.Positioner>
+              </Portal>
+            </Select.Root>
+          </Box>
+          <Box>
+            <Text fontSize="sm" fontWeight="semibold" mb={1}>Suche</Text>
+            <Input
+              size="sm"
+              placeholder="Name / Frage / Antwort"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </Box>
+          {favoriteQuestions.length > 0 && (
+            <Box>
+              <Text fontSize="sm" fontWeight="semibold" mb={2}>Favoriten ({favoriteQuestions.length})</Text>
+              <Stack maxH="200px" overflowY="auto" pr={1} gap={3}>
+                {favoriteQuestions.map(({ q, user }) => (
+                  <QuestionItem
+                    key={q.id}
+                    q={q}
+                    user={user}
+                    borderCol={borderCol}
+                    onToggle={() => toggleFavorite(q.id)}
+                    onCopy={() => copy(q.answer)}
+                    isFav={true}
+                  />
+                ))}
+              </Stack>
+            </Box>
+          )}
+        </Stack>
+      </Box>
+
+      {/* Main Content */}
+      <Box flex="1" p={6} overflowX="hidden">
+        {loading ? (
+          <Flex justify="center" mt={20}><Spinner /></Flex>
+        ) : searchedSurveys.length === 0 ? (
+          <Text mt={10}>Keine Umfragen gefunden.</Text>
+        ) : groupMode === "BY_USER" ? (
+          <Stack gap={8}>
+            {groupedByUser.map(({ user, surveys }) => (
+              <Box key={user.id}>
+                <Heading size="sm" mb={3}>{user.name} {user.last_name} <Badge ml={2}>{surveys.length}</Badge></Heading>
+                <Flex gap={4} wrap="wrap">
+                  {surveys.map((s) => (
+                    <SurveyCard
+                      key={s.id}
+                      survey={s}
+                      borderCol={borderCol}
+                      favorites={favorites}
+                      toggleFavorite={toggleFavorite}
+                      copy={copy}
+                    />
+                  ))}
+                </Flex>
+              </Box>
             ))}
-          </Accordion.Root>
+          </Stack>
+        ) : groupMode === "BY_DATE" ? (
+          <Stack gap={10}>
+            {groupedByDate.map(({ date, surveys }) => (
+              <Box key={date}>
+                <Heading size="sm" mb={3}>{date} <Badge ml={2}>{surveys.length}</Badge></Heading>
+                <Flex gap={4} wrap="wrap">
+                  {surveys.map((s) => (
+                    <SurveyCard
+                      key={s.id}
+                      survey={s}
+                      borderCol={borderCol}
+                      favorites={favorites}
+                      toggleFavorite={toggleFavorite}
+                      copy={copy}
+                    />
+                  ))}
+                </Flex>
+              </Box>
+            ))}
+          </Stack>
+        ) : (
+          <Flex gap={4} wrap="wrap">
+            {flatSurveys.map((s) => (
+              <SurveyCard
+                key={s.id}
+                survey={s}
+                borderCol={borderCol}
+                favorites={favorites}
+                toggleFavorite={toggleFavorite}
+                copy={copy}
+              />
+            ))}
+          </Flex>
         )}
       </Box>
-    </Box>
+    </Flex>
   );
 }
 
@@ -413,5 +478,50 @@ function QuestionItem({
         </Flex>
       </Flex>
     </Box>
+  );
+}
+
+// Einzelne Survey als Card mit ihren Fragen
+function SurveyCard({
+  survey,
+  borderCol,
+  favorites,
+  toggleFavorite,
+  copy,
+}: {
+  survey: Survey;
+  borderCol: string;
+  favorites: string[];
+  toggleFavorite: (id: string) => void;
+  copy: (text: string) => void;
+}) {
+  return (
+    <Card.Root w="360px" flexShrink={0}>
+      <CardHeader pb={2}>
+        <Heading size="xs">
+          {survey.user.name} {survey.user.last_name}
+        </Heading>
+        <Text fontSize="xs" color="gray.500">
+          {new Date(survey.submittedAt ?? survey.createdAt).toLocaleString("de-DE")}
+        </Text>
+      </CardHeader>
+      <CardBody pt={0}>
+        <Stack gap={4}>
+          {survey.questions
+            .filter((q) => !q.question.isDeleted)
+            .map((q) => (
+              <QuestionItem
+                key={q.id}
+                q={q}
+                user={survey.user}
+                borderCol={borderCol}
+                onToggle={() => toggleFavorite(q.id)}
+                onCopy={() => copy(q.answer)}
+                isFav={favorites.includes(q.id)}
+              />
+            ))}
+        </Stack>
+      </CardBody>
+    </Card.Root>
   );
 }

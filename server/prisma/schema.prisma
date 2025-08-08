@@ -19,9 +19,10 @@ model User {
   password     String
   name         String
   last_name    String
-  isAffiliate  Boolean?
+  isAffiliate  Boolean?  
   mobileNumber String?
   role         Role
+  isCustomer   Boolean?  // Kennzeichnet echte Kunden. Flag statt zusätzlicher Rolle, damit Affiliate + Kunde kombinierbar.
 
   // 1:1- oder m:1-Relation zur Phase als Kunde
   phase   Phase?  @relation("CustomerToPhase", fields: [phaseId], references: [id])
@@ -177,6 +178,7 @@ model Question {
   createdAt        DateTime         @default(now())
   isRating         Boolean          @default(false)
   isDeleted        Boolean          @default(false) // 👈 das neue Feld
+  isTemporary      Boolean          @default(false) // Nur für einmalige Broadcast-Umfragen
   surveyAnswers    SurveyQuestion[]
 }
 

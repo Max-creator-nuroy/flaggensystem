@@ -52,6 +52,7 @@ export default function Dashboard() {
   const [flagColor, setFlagColor] = useState<string>("");
   const [comment, setComment] = useState<string>("");
   const [isAffiliate, setIsAffiliate] = useState(!!userData?.isAffiliate);
+  const [isCustomer, setIsCustomer] = useState(!!userData?.isCustomer);
 
   const absenceList = createListCollection({
     items: [
@@ -86,6 +87,7 @@ export default function Dashboard() {
         setDailCheckList(data.dailyChecks || []);
         setSelectedPhaseId(data.phaseId);
         setIsAffiliate(data.isAffiliate);
+        setIsCustomer(data.isCustomer);
       });
 
     fetch(`http://localhost:3000/users/getCoachByUser/${uid}`, {
@@ -592,35 +594,38 @@ export default function Dashboard() {
           </CardBody>
         </Card.Root>
 
-        <Card.Root shadow={"sm"}>
-          <CardHeader>
-            <Heading size="md">Status</Heading>
-          </CardHeader>
-          <CardBody>
-            <Badge colorScheme={guarantee.color} fontSize="lg">
-              {guarantee.text}
-            </Badge>
+        {isCustomer && (
 
-            <Popover.Root>
-              <Popover.Trigger asChild>
-                <Button mt={2} colorScheme="blue">
-                  Regeln
-                </Button>
-              </Popover.Trigger>
-              <Portal>
-                <Popover.Positioner>
-                  <Popover.Content maxW="xl">
-                    <Popover.Arrow />
-                    <Popover.Header fontWeight="bold">Regeln</Popover.Header>
-                    <Popover.Body whiteSpace="pre-wrap">
-                      {coach.coachRules}
-                    </Popover.Body>
-                  </Popover.Content>
-                </Popover.Positioner>
-              </Portal>
-            </Popover.Root>
-          </CardBody>
-        </Card.Root>
+          <Card.Root shadow={"sm"}>
+            <CardHeader>
+              <Heading size="md">Status</Heading>
+            </CardHeader>
+            <CardBody>
+              <Badge colorScheme={guarantee.color} fontSize="lg">
+                {guarantee.text}
+              </Badge>
+
+              <Popover.Root>
+                <Popover.Trigger asChild>
+                  <Button mt={2} colorScheme="blue">
+                    Regeln
+                  </Button>
+                </Popover.Trigger>
+                <Portal>
+                  <Popover.Positioner>
+                    <Popover.Content maxW="xl">
+                      <Popover.Arrow />
+                      <Popover.Header fontWeight="bold">Regeln</Popover.Header>
+                      <Popover.Body whiteSpace="pre-wrap">
+                        {coach.coachRules}
+                      </Popover.Body>
+                    </Popover.Content>
+                  </Popover.Positioner>
+                </Portal>
+              </Popover.Root>
+            </CardBody>
+          </Card.Root>
+        )}
 
         <Card.Root shadow={"sm"}>
           <CardHeader>
@@ -686,35 +691,37 @@ export default function Dashboard() {
         ""
       )}
 
-      {/* Daily Checks */}
-      <Card.Root shadow={"sm"}>
-        <CardHeader>
-          <Heading size="md">Daily Checks (letzte 7)</Heading>
-        </CardHeader>
-        <CardBody>
-          {dailyCheckList.length === 0 ? (
-            <Text>Keine Daily Checks vorhanden.</Text>
-          ) : (
-            <>
-              <Text mb={3}>
-                Vollständig bestanden: <b>{passedIn7Days}</b> /{" "}
-                {Math.min(7, dailyCheckList.length)}
-              </Text>
-              <VStack align="start" spaceX={2}>
-                {dailyCheckList.slice(0, 7).map((dc) => (
-                  <Flex key={dc.id} justify="space-between" w="100%">
-                    <Text>{new Date(dc.date).toLocaleDateString("de-DE")}</Text>
-                    <Text>
-                      {dc.entries.filter((e: any) => e.fulfilled).length} /{" "}
-                      {dc.entries.length}
-                    </Text>
-                  </Flex>
-                ))}
-              </VStack>
-            </>
-          )}
-        </CardBody>
-      </Card.Root>
+      {isCustomer && (
+
+        <Card.Root shadow={"sm"}>
+          <CardHeader>
+            <Heading size="md">Daily Checks (letzte 7)</Heading>
+          </CardHeader>
+          <CardBody>
+            {dailyCheckList.length === 0 ? (
+              <Text>Keine Daily Checks vorhanden.</Text>
+            ) : (
+              <>
+                <Text mb={3}>
+                  Vollständig bestanden: <b>{passedIn7Days}</b> /{" "}
+                  {Math.min(7, dailyCheckList.length)}
+                </Text>
+                <VStack align="start" spaceX={2}>
+                  {dailyCheckList.slice(0, 7).map((dc) => (
+                    <Flex key={dc.id} justify="space-between" w="100%">
+                      <Text>{new Date(dc.date).toLocaleDateString("de-DE")}</Text>
+                      <Text>
+                        {dc.entries.filter((e: any) => e.fulfilled).length} /{" "}
+                        {dc.entries.length}
+                      </Text>
+                    </Flex>
+                  ))}
+                </VStack>
+              </>
+            )}
+          </CardBody>
+        </Card.Root>
+      )}
 
       {/* Flags */}
       {flags.length > 0 && (

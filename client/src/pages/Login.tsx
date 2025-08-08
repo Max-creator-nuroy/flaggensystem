@@ -55,7 +55,7 @@ export default function Login() {
         </Heading>
         <Form onSubmit={handleSubmit}>
           <Field.Root mb={3}>
-            <FieldLabel>Benutzername oder E-Mail Adresse</FieldLabel>
+            <FieldLabel>E-Mail Adresse</FieldLabel>
             <Input
               type="text"
               value={email}

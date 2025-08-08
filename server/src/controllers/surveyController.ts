@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { PrismaClient } from "@prisma/client";
+import { createTemporaryQuestions } from "./questionController";
 
 const prisma = new PrismaClient();
 
@@ -436,5 +437,60 @@ export const getSurveyCompletionRateForCustomersByCoach = async (
   } catch (error) {
     console.error("Fehler bei getSurveyByCoach:", error);
     res.status(500).json({ error: "Interner Serverfehler" });
+  }
+};
+
+// POST /surveys/broadcastCustomSurvey
+// Body: { targetRole: 'COACH' | 'CUSTOMER', questions: [{text,isRating}], comment?: string }
+export const broadcastCustomSurvey = async (req: Request, res: Response) => {
+  const { targetRole, questions, comment } = req.body;
+  if (!targetRole || !Array.isArray(questions) || questions.length === 0) {
+    return res
+      .status(400)
+      .json({ error: "targetRole und mindestens eine Frage erforderlich" });
+  }
+  if (!["COACH", "CUSTOMER"].includes(targetRole)) {
+    return res.status(400).json({ error: "Ungültige targetRole" });
+  }
+
+  try {
+    // 1. Temporäre Fragen erstellen (optional: könnte auch vorhandene nehmen)
+    const createdQuestions = await createTemporaryQuestions(
+      questions.map((q: any) => ({ text: q.text, isRating: !!q.isRating }))
+    );
+
+    // 2. Ziel-User laden
+    const users = await prisma.user.findMany({ where: { role: targetRole } });
+    if (!users.length) {
+      return res.status(200).json({ message: "Keine Ziel-User gefunden", count: 0 });
+    }
+
+    // 3. Surveys batch anlegen
+    await prisma.$transaction(
+      users.map((u) =>
+        prisma.survey.create({
+          data: {
+            userId: u.id,
+            comment: comment ?? null,
+            questions: {
+              create: createdQuestions.map((q) => ({
+                questionId: q.id,
+                answer: "",
+                rating: null,
+              })),
+            },
+          },
+        })
+      )
+    );
+
+    res.status(201).json({
+      message: "Broadcast Survey erstellt",
+      questionCount: createdQuestions.length,
+      userCount: users.length,
+    });
+  } catch (error) {
+    console.error("Fehler beim Broadcast Survey:", error);
+    res.status(500).json({ error: "Fehler beim Broadcast" });
   }
 };

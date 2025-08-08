@@ -34,7 +34,7 @@ export const createCoach = async (req: Request, res: Response) => {
 export const createUser = async (req: Request, res: Response) => {
   try {
     const coachId = req.params.coachId;
-    const { email, password, name, last_name, isAffiliate, phaseId } = req.body;
+    const { email, password, name, last_name,mobileNumber, isAffiliate, phaseId, isCustomer } = req.body;
 
     const existingUser = await prisma.user.findUnique({ where: { email } });
     if (existingUser) {
@@ -45,11 +45,13 @@ export const createUser = async (req: Request, res: Response) => {
     const newUser = await prisma.user.create({
       data: {
         email,
+        mobileNumber,
         password: hashed,
         name,
         last_name,
         role: "CUSTOMER",
         isAffiliate: isAffiliate != null ? isAffiliate : false,
+        isCustomer: isCustomer != null ? isCustomer : false,
         phaseId
       },
     });
