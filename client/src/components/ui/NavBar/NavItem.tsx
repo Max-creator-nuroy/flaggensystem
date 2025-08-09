@@ -1,12 +1,14 @@
 import { Button, Flex, Icon, Text } from "@chakra-ui/react";
-import { Link } from "react-router-dom";
+import { Tooltip } from "@/components/ui/tooltip";
+import { Link, useLocation } from "react-router-dom";
+import { memo } from 'react';
 
 type NavItemProps = {
-  navSize: any;
+  collapsed: boolean;
   icon: any;
-  title: string;
-  active?: any;
-  target: any;
+  label: string;
+  to: string; // relative path without leading slash also ok
+  onClick?: () => void;
 };
 
 export function logout() {
@@ -15,39 +17,43 @@ export function logout() {
   window.location.href = "/login"; // Zurück zum Login
 }
 
-export default function NavItem({
-  navSize,
-  icon,
-  title,
-  active,
-  target,
-}: NavItemProps) {
-  return (
-    <Flex
-      mt={{ base: navSize ? 1 : 0, md: 30 }}
-      flexDir="column"
+function InnerNavItem({ collapsed, icon, label, to, onClick }: NavItemProps) {
+  const location = useLocation();
+  const path = to.startsWith('/') ? to : `/${to}`;
+  const active = location.pathname === path || location.pathname.startsWith(path + '/');
+
+  const content = (
+    <Button
+      variant={active ? 'solid' : 'ghost'}
+      justifyContent={collapsed ? 'center' : 'flex-start'}
       w="100%"
-      alignItems={navSize == "small" ? "center" : "flex-start"}
+      px={collapsed ? 0 : 3}
+      py={collapsed ? 3 : 4}
+      borderRadius="lg"
+      gap={collapsed ? 0 : 3}
+      bg={active ? 'blue.500' : 'transparent'}
+      color={active ? 'white' : 'gray.600'}
+      _hover={{ bg: active ? 'blue.600' : 'blue.50', color: active ? 'white' : 'gray.800' }}
+      onClick={onClick}
     >
-      <Link to={"/" + target} style={{ textDecoration: "none" }}>
-        <Button
-          bg={active && "blue.400"}
-          p={3}
-          borderRadius={8}
-          _hover={{ textDecor: "none", backgroundColor: "blue.400" }}
-          w={navSize == "large" ? "100%" : undefined}
-          onClick={target == "login" ? logout : undefined}
-        >
-          <Icon
-            as={icon}
-            fontSize="xl"
-            color={active ? "blue.400" : "gray.400"}
-          ></Icon>
-          <Text ml={5} display={navSize == "small" ? "none" : "flex"}>
-            {title}
-          </Text>
-        </Button>
+      <Icon as={icon} fontSize="lg" />
+      {!collapsed && (
+        <Text fontSize="sm" fontWeight={active ? 'semibold' : 'medium'}>{label}</Text>
+      )}
+    </Button>
+  );
+
+  return (
+    <Flex w="100%" my={1} px={collapsed ? 1 : 2}>
+      <Link to={path} style={{ width: '100%' }}>
+        {collapsed ? (
+          <Tooltip content={label} positioning={{ placement: 'right' }} showArrow>
+            {content}
+          </Tooltip>
+        ) : content}
       </Link>
     </Flex>
   );
 }
+
+export default memo(InnerNavItem);

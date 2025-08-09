@@ -2,7 +2,6 @@ import {
   Box,
   Flex,
   Grid,
-  GridItem,
   Text,
   Icon,
   Input,
@@ -18,6 +17,8 @@ import { CgDanger, CgProfile } from "react-icons/cg";
 import { FcQuestions } from "react-icons/fc";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import getUserFromToken from "@/services/getTokenFromLokal";
+import { KpiCard } from "@/components/dashboard/KpiCard";
+import { kpiColor } from "@/components/dashboard/theme";
 
 
 
@@ -30,6 +31,8 @@ export default function DashboardCoach() {
   const [garantyLost, setGarantyLost] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [sortKey, setSortKey] = useState<'name' | 'red' | 'yellow'>('name');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
 
   const token = localStorage.getItem("token");
   const coach = getUserFromToken(token);
@@ -101,36 +104,34 @@ export default function DashboardCoach() {
   }, []);
 
   // ---- Extra KPIs ----
-  const extraStats = useMemo(() => {
-    if (customerList.length === 0) {
-      return {
-        avgRedFlags: 0,
-        zeroFlagPct: 0,
-      };
-    }
-    const totalRed = customerList.reduce(
-      (acc, c) => acc + c.flags.filter((f:any) => f.color === "RED").length,
-      0
-    );
-    const zeroFlagCustomers = customerList.filter(
-      (c) => c.flags.length === 0
-    ).length;
-    return {
-      avgRedFlags: +(totalRed / customerList.length).toFixed(2),
-      zeroFlagPct: +((zeroFlagCustomers / customerList.length) * 100).toFixed(
-        1
-      ),
-    };
-  }, [customerList]);
+  // Removed unused extraStats after design simplification
 
   // Suche
   const filteredCustomers = useMemo(() => {
-    if (!searchTerm.trim()) return customerList;
     const term = searchTerm.toLowerCase();
-    return customerList.filter((c) =>
-      `${c.name} ${c.last_name}`.toLowerCase().includes(term)
-    );
-  }, [customerList, searchTerm]);
+    const filtered = customerList.filter(c => (`${c.name} ${c.last_name}`).toLowerCase().includes(term));
+    const sorted = [...filtered].sort((a,b) => {
+      let av:any; let bv:any;
+      if (sortKey === 'name') {
+        av = (`${a.name} ${a.last_name}`).toLowerCase();
+        bv = (`${b.name} ${b.last_name}`).toLowerCase();
+      } else if (sortKey === 'red') {
+        av = a.flags.filter((f:any)=>f.color==='RED').length;
+        bv = b.flags.filter((f:any)=>f.color==='RED').length;
+      } else {
+        av = a.flags.filter((f:any)=>f.color==='YELLOW').length;
+        bv = b.flags.filter((f:any)=>f.color==='YELLOW').length;
+      }
+      if (av < bv) return sortDir==='asc' ? -1 : 1;
+      if (av > bv) return sortDir==='asc' ? 1 : -1;
+      return 0;
+    });
+    return sorted;
+  }, [customerList, searchTerm, sortKey, sortDir]);
+
+  const toggleSort = (key: 'name' | 'red' | 'yellow') => {
+    if (sortKey === key) setSortDir(d=>d==='asc'?'desc':'asc'); else { setSortKey(key); setSortDir('asc'); }
+  };
 
   // --- Helper ---
   const countColor = (customer: any, color: "RED" | "YELLOW" | "GREEN") =>
@@ -143,258 +144,93 @@ export default function DashboardCoach() {
   return (
     <Box>
       {/* KPI Grid */}
-      <Grid
-        templateColumns={{
-          base: "1fr",
-          md: "repeat(2, 1fr)",
-          xl: "repeat(4, 1fr)",
-        }}
-        mt={{ base: 4, md: 6 }}
-      >
-        {/* Gesamte Nutzer */}
-        <GridItem colSpan={1}>
-          <CardRoot
-            onClick={() => handleClick("/customerList")}
-            title="Gesamte Nutzer"
-            icon={<CgProfile />}
-            value={customerList.length}
-            subtitle={`${countAffiliate} Affiliates • ${countCustomer} Kunden`}
-            bgColor="teal.500"
-          />
-        </GridItem>
-
-        {/* Garantie gefährdet */}
-        <GridItem colSpan={1}>
-          <CardRoot
-            onClick={() => handleClick("/customerFlags?garanty=RISK")}
-            title="Garantie gefährdet"
-            icon={<CgDanger color="orange" />}
-            value={atRisk}
-            subtitle="≥ 5 rote Flaggen"
-            bgColor="orange.400"
-          />
-        </GridItem>
-
-        {/* Garantie verloren */}
-        <GridItem colSpan={1}>
-          <CardRoot
-            onClick={() => handleClick("/customerFlags?garanty=LOST")}
-            title="Garantie verloren"
-            icon={<CgDanger color="red" />}
-            value={garantyLost}
-            subtitle="≥ 10 rote Flaggen"
-            bgColor="red.500"
-          />
-        </GridItem>
-
-        {/* Survey Completion */}
-        <GridItem colSpan={{ base: 1, md: 2, xl: 1 }}>
-          <Box
-            borderRadius="lg"
-            borderWidth={1}
-            m={5}
-            mt={0}
-            height="100%"
-            bg={cardBg}
-            borderColor={borderCol}
-            _hover={{
-              cursor: "pointer",
-              bg: useColorModeValue("blue.50", "gray.600"),
-            }}
-            onClick={() => handleClick("/survey/surveyAnswers")}
-          >
-            <Flex flexDirection="column">
-              <Flex
-                p={5}
-                pb={0}
-                justifyContent="space-between"
-                alignItems="center"
-              >
-                <Text fontSize={{ lg: "xl", sm: "md" }}>
-                  Umfragen beantwortet
-                </Text>
-                <Icon as={FcQuestions} />
-              </Flex>
-              <Flex flexDirection={"column"} m={5} mt={3}>
-                <Progress.Root value={cRForCustomers ?? 0}>
-                  <HStack>
-                    <Progress.Label>Kunden</Progress.Label>
-                    <Progress.Track flex="1">
-                      <Progress.Range />
-                    </Progress.Track>
-                    <Progress.ValueText>
-                      {cRForCustomers ?? 0}%
-                    </Progress.ValueText>
-                  </HStack>
-                </Progress.Root>
-              </Flex>
-            </Flex>
-          </Box>
-        </GridItem>
+      {/* KPI Grid */}
+      <Grid templateColumns={{ base: '1fr', md: 'repeat(2,1fr)', xl: 'repeat(4,1fr)' }} gap={5} mt={6} mb={8}>
+        <KpiCard
+          title="Gesamte Nutzer"
+          value={customerList.length}
+          subtitle={`${countAffiliate} Affiliates • ${countCustomer} Kunden`}
+          gradient={kpiColor('users')}
+          icon={<CgProfile />}
+          onClick={() => handleClick('/customerList')}
+        />
+        <KpiCard
+          title="Garantie gefährdet"
+          value={atRisk}
+          subtitle={'≥ 5 rote Flaggen'}
+          gradient={kpiColor('risk')}
+          icon={<CgDanger color='orange' />}
+          onClick={() => handleClick('/customerFlags?garanty=RISK')}
+        />
+        <KpiCard
+          title="Garantie verloren"
+          value={garantyLost}
+          subtitle={'≥ 10 rote Flaggen'}
+          gradient={kpiColor('lost')}
+          icon={<CgDanger color='red' />}
+          onClick={() => handleClick('/customerFlags?garanty=LOST')}
+        />
+        <Box borderRadius="lg" borderWidth={1} m={1} mt={0} bg={cardBg} borderColor={borderCol} p={5} _hover={{ cursor: 'pointer', bg: useColorModeValue('blue.50','gray.600') }} onClick={() => handleClick('/survey/surveyAnswers')}>
+          <Flex justify="space-between" align="center" mb={3}>
+            <Text fontWeight="semibold">Umfragen</Text>
+            <Icon as={FcQuestions} />
+          </Flex>
+          <Progress.Root value={cRForCustomers ?? 0}>
+            <HStack>
+              <Progress.Label w="90px">Kunden</Progress.Label>
+              <Progress.Track flex="1"><Progress.Range /></Progress.Track>
+              <Progress.ValueText>{cRForCustomers ?? 0}%</Progress.ValueText>
+            </HStack>
+          </Progress.Root>
+        </Box>
       </Grid>
 
-      {/* Extra Stats Row */}
-      <Grid
-        templateColumns={{
-          base: "1fr",
-          md: "repeat(2, 1fr)",
-          xl: "repeat(3, 1fr)",
-        }}
-        mt={5}
-      >
-        <GridItem>
-          <MiniStatCard
-            label="Ø rote Flags pro Kunde"
-            value={extraStats.avgRedFlags}
-            color="red.500"
-          />
-        </GridItem>
-        <GridItem>
-          <MiniStatCard
-            label="% Kunden ohne Flags"
-            value={`${extraStats.zeroFlagPct}%`}
-            color="green.500"
-          />
-        </GridItem>
-        <GridItem>
-          <MiniStatCard
-            label="Aktive Kunden"
-            value={customerList.length - garantyLost}
-            color="teal.500"
-          />
-        </GridItem>
-      </Grid>
+  {/* (Optional) Additional KPIs could be inserted here */}
 
       {/* Kundenliste */}
-      <Box
-        p={5}
-        mx="auto"
-        borderRadius="lg"
-        m={5}
-        bg={cardBg}
-        borderWidth={1}
-        borderColor={borderCol}
-      >
-        <Text fontSize="2xl" fontWeight="bold">
-          Meine Kunden
-        </Text>
-        <Text fontSize="sm" color="gray.500">
-          Detailansicht aller zugewiesenen Kunden
-        </Text>
-
-        {loading ? (
-          <Spinner mt={4} />
-        ) : (
-          <Flex flexDirection={"column"}>
-            <Input
-              placeholder="Nach Namen suchen…"
-              maxWidth={{ base: "100%", sm: "60%", lg: "40%" }}
-              type="text"
-              mt={3}
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-
-            {/* Desktop Tabelle */}
-            <Box display={{ base: "none", md: "block" }} mt={3}>
-              <Table.ScrollArea borderWidth="1px" rounded="md" height="60vh">
-                <Table.Root size="sm" stickyHeader interactive>
-                  <Table.Header>
-                    <Table.Row bg="bg.subtle">
-                      <Table.ColumnHeader>Name</Table.ColumnHeader>
-                      <Table.ColumnHeader>Handynummer</Table.ColumnHeader>
-                      <Table.ColumnHeader>Rolle</Table.ColumnHeader>
-                      <Table.ColumnHeader textAlign="end">
-                        Flags (G/Y/R)
-                      </Table.ColumnHeader>
+      <Box p={5} mx="auto" borderRadius="lg" m={5} bg={cardBg} borderWidth={1} borderColor={borderCol}>
+        <Flex justify="space-between" align="center" flexWrap="wrap" gap={3}>
+          <Box>
+            <Text fontSize="2xl" fontWeight="bold">Meine Kunden</Text>
+            <Text fontSize="sm" color="gray.500">Detailansicht aller zugewiesenen Kunden</Text>
+          </Box>
+          <Input placeholder="Nach Namen suchen…" maxW={{ base: '100%', md: '300px' }} value={searchTerm} onChange={e=>setSearchTerm(e.target.value)} />
+        </Flex>
+        {loading ? <Flex justify="center" py={10}><Spinner /></Flex> : (
+          <>
+            <Table.ScrollArea borderWidth="1px" rounded="md" height="60vh" mt={4}>
+              <Table.Root size="sm" stickyHeader interactive>
+                <Table.Header>
+                  <Table.Row bg="bg.subtle">
+                    <Table.ColumnHeader onClick={()=>toggleSort('name')} _hover={{cursor:'pointer', bg:'blue.25'}}>
+                      Name {sortKey==='name' && (sortDir==='asc'?'▲':'▼')}
+                    </Table.ColumnHeader>
+                    <Table.ColumnHeader>Handynummer</Table.ColumnHeader>
+                    <Table.ColumnHeader>Rolle</Table.ColumnHeader>
+                    <Table.ColumnHeader onClick={()=>toggleSort('yellow')} _hover={{cursor:'pointer', bg:'blue.25'}} textAlign="right">
+                      Gelb {sortKey==='yellow' && (sortDir==='asc'?'▲':'▼')}
+                    </Table.ColumnHeader>
+                    <Table.ColumnHeader onClick={()=>toggleSort('red')} _hover={{cursor:'pointer', bg:'blue.25'}} textAlign="right">
+                      Rot {sortKey==='red' && (sortDir==='asc'?'▲':'▼')}
+                    </Table.ColumnHeader>
+                  </Table.Row>
+                </Table.Header>
+                <Table.Body>
+                  {filteredCustomers.map(c => (
+                    <Table.Row key={c.id} _hover={{ cursor: 'pointer', bg: 'blue.50' }} onClick={()=> handleClick(`/dashboard/CUSTOMER?userId=${c.id}`)}>
+                      <Table.Cell>{c.name} {c.last_name}</Table.Cell>
+                      <Table.Cell>{c.mobileNumber || '—'}</Table.Cell>
+                      <Table.Cell>
+                        <Badge colorScheme={c.isAffiliate? 'purple':'blue'}>{c.isAffiliate? 'Affiliate':'Kunde'}</Badge>
+                      </Table.Cell>
+                      <Table.Cell textAlign="right">{countColor(c,'YELLOW')}</Table.Cell>
+                      <Table.Cell textAlign="right">{countColor(c,'RED')}</Table.Cell>
                     </Table.Row>
-                  </Table.Header>
-                  <Table.Body>
-                    {filteredCustomers.map((customer) => (
-                      <Table.Row
-                        key={customer.id}
-                        _hover={{ cursor: "pointer", bg: "blue.50" }}
-                        onClick={() =>
-                          handleClick(
-                            `/dashboard/CUSTOMER?userId=${customer.id}`
-                          )
-                        }
-                      >
-                        <Table.Cell>
-                          {customer.name} {customer.last_name}
-                        </Table.Cell>
-                        <Table.Cell>{customer.mobileNumber || "—"}</Table.Cell>
-                        <Table.Cell>
-                          <Badge
-                            colorScheme={
-                              customer.isAffiliate ? "purple" : "blue"
-                            }
-                          >
-                            {customer.isAffiliate ? "Affiliate" : "Kunde"}
-                          </Badge>
-                        </Table.Cell>
-                        <Table.Cell>
-                          <Flex justifyContent="end">
-                            <Text color="yellow.500" ml={2}>
-                              {countColor(customer, "YELLOW")}
-                            </Text>
-                            <Text color="red.500" ml={2}>
-                              {countColor(customer, "RED")}
-                            </Text>
-                          </Flex>
-                        </Table.Cell>
-                      </Table.Row>
-                    ))}
-                  </Table.Body>
-                </Table.Root>
-              </Table.ScrollArea>
-            </Box>
-
-            {/* Mobile Cards */}
-            <Box display={{ base: "block", md: "none" }} mt={3}>
-              {filteredCustomers.map((c) => (
-                <Box
-                  key={c.id}
-                  borderWidth={1}
-                  borderColor={borderCol}
-                  bg={cardBg}
-                  borderRadius="md"
-                  p={4}
-                  mb={2}
-                  onClick={() => handleClick(`/dashboard/CUSTOMER?userId=${c.id}`)}
-                  _hover={{
-                    cursor: "pointer",
-                    bg: useColorModeValue("blue.50", "gray.600"),
-                  }}
-                >
-                  <Flex justify="space-between">
-                    <Box>
-                      <Text fontWeight="bold">
-                        {c.name} {c.last_name}
-                      </Text>
-                      <Text fontSize="sm" color="gray.500">
-                        {c.mobileNumber || "—"}
-                      </Text>
-                      <Badge
-                        mt={1}
-                        colorScheme={c.isAffiliate ? "purple" : "blue"}
-                      >
-                        {c.isAffiliate ? "Affiliate" : "Kunde"}
-                      </Badge>
-                    </Box>
-                    <Flex align="center">
-                      <Text color="yellow.500" ml={2}>
-                        {countColor(c, "YELLOW")}
-                      </Text>
-                      <Text color="red.500" ml={2}>
-                        {countColor(c, "RED")}
-                      </Text>
-                    </Flex>
-                  </Flex>
-                </Box>
-              ))}
-            </Box>
-          </Flex>
+                  ))}
+                </Table.Body>
+              </Table.Root>
+            </Table.ScrollArea>
+          </>
         )}
       </Box>
     </Box>
@@ -403,91 +239,4 @@ export default function DashboardCoach() {
 
 /* ---------- Reusable UI Bits ---------- */
 
-function CardRoot({
-  title,
-  value,
-  subtitle,
-  icon,
-  onClick,
-  bgColor,
-}: {
-  title: string;
-  value: number | string;
-  subtitle?: string;
-  icon?: React.ReactNode;
-  onClick?: () => void;
-  bgColor?: string;
-}) {
-  const bg = useColorModeValue("white", "gray.700");
-  const borderCol = useColorModeValue("gray.200", "gray.600");
-
-  return (
-    <Box
-      borderRadius="lg"
-      borderWidth={1}
-      m={5}
-      mt={0}
-      height="100%"
-      bg={bg}
-      borderColor={borderCol}
-      _hover={{
-        cursor: onClick ? "pointer" : "default",
-        bg: useColorModeValue("blue.50", "gray.600"),
-      }}
-      onClick={onClick}
-    >
-      <Flex flexDirection="column">
-        <Flex p={5} pb={0} justifyContent="space-between" alignItems="center">
-          <Text fontSize={{ lg: "xl", sm: "md" }}>{title}</Text>
-          {icon && <Icon>{icon}</Icon>}
-        </Flex>
-        <Flex flexDirection={"column"}>
-          <Text
-            ml={5}
-            fontSize={{ lg: "2xl", sm: "xl" }}
-            color={bgColor || "inherit"}
-          >
-            {value}
-          </Text>
-          {subtitle && (
-            <Text ml={5} fontSize={"sm"} color={"gray.500"}>
-              {subtitle}
-            </Text>
-          )}
-        </Flex>
-      </Flex>
-    </Box>
-  );
-}
-
-function MiniStatCard({
-  label,
-  value,
-  color,
-}: {
-  label: string;
-  value: string | number;
-  color?: string;
-}) {
-  const bg = useColorModeValue("white", "gray.700");
-  const borderCol = useColorModeValue("gray.200", "gray.600");
-  return (
-    <Box
-      borderRadius="lg"
-      borderWidth={1}
-      m={5}
-      mt={0}
-      bg={bg}
-      borderColor={borderCol}
-    >
-      <Flex flexDirection="column" p={4}>
-        <Text fontSize="sm" color="gray.500">
-          {label}
-        </Text>
-        <Text fontSize="2xl" fontWeight="bold" color={color || "inherit"}>
-          {value}
-        </Text>
-      </Flex>
-    </Box>
-  );
-}
+// Removed legacy CardRoot & MiniStatCard after redesign

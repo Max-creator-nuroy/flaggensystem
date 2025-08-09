@@ -154,3 +154,42 @@ export async function updateLeadByMobile(input: UpdateLeadInput) {
 
   return updatedLead;
 }
+
+// GET /leads/leadGrowth?days=30  (auth: coach/admin)
+export const getLeadGrowthForCoach = async (req: Request & { user?: any }, res: Response) => {
+  try {
+    const days = parseInt(String(req.query.days || '30'));
+    const fromDate = new Date();
+    fromDate.setDate(fromDate.getDate() - (isNaN(days)?30:days));
+
+    // Determine coach id: if admin can pass coachId query, else use token user id
+    const coachId = (req.query.coachId as string) || req.user?.id;
+    if(!coachId) return res.status(400).json({ success:false, error:'MISSING_COACH_ID' });
+
+    const leads = await prisma.lead.findMany({
+      where: { userId: coachId, createdAt: { gte: fromDate } },
+      select: { createdAt: true },
+      orderBy: { createdAt: 'asc' }
+    });
+
+    const map: Record<string, number> = {};
+    leads.forEach(l => { const key = l.createdAt.toISOString().slice(0,10); map[key] = (map[key]||0)+1; });
+
+    const data: { date:string; newLeads:number; cumulative:number }[] = [];
+    let cursor = new Date(fromDate);
+    const today = new Date();
+    let cumulative = 0;
+    while (cursor <= today) {
+      const key = cursor.toISOString().slice(0,10);
+      const newCount = map[key] || 0;
+      cumulative += newCount;
+      data.push({ date:key, newLeads: newCount, cumulative });
+      cursor.setDate(cursor.getDate()+1);
+    }
+
+    return res.json({ success:true, rangeDays: days, coachId, data });
+  } catch(e){
+    console.error('getLeadGrowthForCoach error', e);
+    return res.status(500).json({ success:false, error:'INTERNAL_ERROR' });
+  }
+};

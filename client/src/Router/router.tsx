@@ -21,7 +21,11 @@ import LeadList from "@/components/ui/LeadList";
 import CreateUser from "@/pages/Coach/createUser";
 import CreateCoach from "@/pages/Admin/CreateCoach";
 import ProfilePage from "@/pages/ProfilPage";
-import CoachStats from "@/pages/Admin/CoachStats";
+// removed unused CoachStats import
+import CoachDetail from "@/pages/Admin/CoachDetail";
+import AdminAnalytics from "@/pages/Admin/AdminAnalytics";
+import RequirementDetail from "@/pages/Admin/RequirementDetail";
+// CoachAnalytics removed
 
 export const router = createBrowserRouter([
   {
@@ -63,6 +67,7 @@ export const router = createBrowserRouter([
         children: [
           { path: "dashboard/CUSTOMER", element: <DashboardUser /> },
           { path: "dashboard/COACH", element: <DashboardCoach /> },
+          // coachAnalytics route removed
           { path: "flagList", element: <FlagList /> },
           { path: "customerFlags", element: <CustomerFlags /> },
           {
@@ -80,8 +85,11 @@ export const router = createBrowserRouter([
         element: <RoleProtectedRoute allowedRoles={["ADMIN"]} />,
         children: [
           { path: "dashboard/ADMIN", element: <DashboardAdmin /> },
-          { path: "statistic", element: <CoachStats /> },
+          { path: "statistic", element: <AdminAnalytics /> },
+          { path: "coachDetail", element: <CoachDetail /> },
+          { path: "requirementDetail", element: <RequirementDetail /> },
           { path: "dashboard/COACH", element: <DashboardCoach /> },
+          // coachAnalytics route removed
           { path: "dashboard/CUSTOMER", element: <DashboardUser /> },
           { path: "customerList/ADMIN", element: <AdminCustomerList /> },
           { path: "createCoach", element: <CreateCoach /> },
