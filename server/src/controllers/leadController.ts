@@ -1,11 +1,11 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, PipelineStatus } from "@prisma/client";
 import { Request, Response } from "express";
 const prisma = new PrismaClient();
 
 interface UpdateLeadInput {
   mobileNumber: string;
   name?: string;
-  stageId?: string;
+  status?: PipelineStatus; // new enum
   closed?: boolean;
   userId?: string;
 }
@@ -15,7 +15,7 @@ interface CreateLeadInput {
   mobileNumber: string;
   email: string;
   userId: string;
-  stageId: string;
+  status?: PipelineStatus; // new enum optional
   closed?: boolean;
 }
 
@@ -27,7 +27,6 @@ export const getLead = async (req: Request, res: Response) => {
       where: { id: leadId },
       include: {
         user: true,
-        stage: true,
       },
     });
 
@@ -44,7 +43,6 @@ export const getAllLeads = async (req: Request, res: Response) => {
     const leads = await prisma.lead.findMany({
       include: {
         user: true,
-        stage: true,
       },
     });
     res.json(leads);
@@ -70,7 +68,7 @@ export async function createLeadByMobile(input: CreateLeadInput) {
       mobileNumber: input.mobileNumber,
       email: input.email,
       userId: input.userId,
-      stageId: input.stageId,
+      status: input.status ?? undefined,
       closed: input.closed ?? false,
     },
   });
@@ -80,14 +78,18 @@ export async function createLeadByMobile(input: CreateLeadInput) {
 
 export const updateLead = async (req: Request, res: Response) => {
   const leadId = req.params.id;
-  const { name, stageId, closed } = req.body;
+  const { name, status, closed } = req.body as {
+    name?: string;
+    status?: PipelineStatus;
+    closed?: boolean;
+  };
 
   try {
     const updatedLead = await prisma.lead.update({
       where: { id: leadId },
       data: {
         name,
-        stageId,
+        status,
         closed,
       },
     });
@@ -119,12 +121,7 @@ export const getLeadsByUser = async (req: Request, res: Response) => {
   try {
     const leads = await prisma.lead.findMany({
       where: { userId },
-      include: {
-        stage: true, // Optional: PipelineStage mit einbeziehen
-      },
-      orderBy: {
-        createdAt: "desc",
-      },
+      orderBy: { createdAt: "desc" },
     });
 
     res.json(leads);

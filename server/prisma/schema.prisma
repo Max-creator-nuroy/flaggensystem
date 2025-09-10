@@ -23,6 +23,7 @@ model User {
   mobileNumber String?
   role         Role
   isCustomer   Boolean?  // Kennzeichnet echte Kunden. Flag statt zusätzlicher Rolle, damit Affiliate + Kunde kombinierbar.
+  isDeleted    Boolean   @default(false) // Soft-delete / Deaktivierung
 
   // 1:1- oder m:1-Relation zur Phase als Kunde
   phase   Phase?  @relation("CustomerToPhase", fields: [phaseId], references: [id])
@@ -31,6 +32,13 @@ model User {
   // 1:n-Relation: Coach hat viele Phasen
   coachedPhases Phase[]       @relation("CoachToPhases")
   absences      Absence[]
+  coachAbsences Absence[] @relation("CoachAbsences")
+  // Abwesenheits-Anfragen
+  absenceRequestsAsCustomer AbsenceRequest[] @relation("CustomerAbsenceRequests")
+  absenceRequestsAsCoach    AbsenceRequest[] @relation("CoachAbsenceRequests")
+  // Journal / Tagebuch
+  journalEntriesAsCustomer JournalEntry[] @relation("JournalCustomer")
+  journalEntriesAsCoach    JournalEntry[] @relation("JournalCoach")
   coachRules    String?
   dailyChecks   DailyCheck[]
   missedCheck   MissedCheck[]
@@ -39,6 +47,9 @@ model User {
   surveys       Survey[]
   videos        Video[]
   leads         Lead[]
+
+  // Back relation für VideoAccessRequest.requestedBy
+  videoAccessRequests VideoAccessRequest[] @relation("UserToVideoRequests")
 
   questions Question[] @relation("CreatedQuestions")
 
@@ -86,11 +97,57 @@ model Absence {
   id        String      @id @default(uuid())
   user      User        @relation(fields: [userId], references: [id])
   userId    String
+  // Direkter Coach (für schnelles Filtern im Nachrichten-Postfach)
+  coach     User?       @relation("CoachAbsences", fields: [coachId], references: [id])
+  coachId   String?
   type      AbsenceType
   from      DateTime
   to        DateTime
   note      String?
+  // Nachricht bearbeitet (Postfach-Status)
+  processed Boolean     @default(false)
   createdAt DateTime    @default(now())
+  // 1:1 zurück zur Request (optional)
+  request   AbsenceRequest?
+
+  @@index([coachId, type, processed])
+}
+
+// Anfrage bevor eine echte Abwesenheit entsteht. Kunde erstellt, Coach akzeptiert oder lehnt ab.
+model AbsenceRequest {
+  id         String      @id @default(uuid())
+  customer   User        @relation("CustomerAbsenceRequests", fields: [customerId], references: [id])
+  customerId String
+  coach      User        @relation("CoachAbsenceRequests", fields: [coachId], references: [id])
+  coachId    String
+  type       AbsenceType
+  from       DateTime
+  to         DateTime
+  note       String?
+  processed  Boolean     @default(false) // bearbeitet ja/nein
+  accepted   Boolean?                 // null=pending, true=akzeptiert, false=abgelehnt
+  createdAt  DateTime    @default(now())
+  absence    Absence?    @relation(fields: [absenceId], references: [id])
+  absenceId  String?     @unique
+
+  @@index([coachId, processed, accepted])
+  @@index([customerId])
+}
+
+// Tagebuch-Eintrag (nur Coach sichtbar im Kunden-Dashboard)
+model JournalEntry {
+  id          String   @id @default(uuid())
+  customer    User     @relation("JournalCustomer", fields: [customerId], references: [id])
+  customerId  String
+  coach       User     @relation("JournalCoach", fields: [coachId], references: [id])
+  coachId     String
+  callNotes   String   // Was im Call besprochen wurde
+  planNotes   String   // Was geplant ist
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([customerId, createdAt])
+  @@index([coachId, createdAt])
 }
 
 enum AbsenceType {
@@ -128,12 +185,41 @@ model FlagEscalationLink {
 model Video {
   id         String      @id @default(uuid())
   title      String?
+  // Primäre URL (z. B. Hot-Storage oder initialer Upload)
   url        String
   user       User        @relation(fields: [userId], references: [id])
   userId     String
   createdAt  DateTime    @default(now())
+  // Zeitpunkt der Archivierung (Cold Storage)
   archivedAt DateTime?
-  DailyCheck DailyCheck?
+  // 1:1 zurück zu DailyCheck
+  DailyCheck DailyCheck? @relation("VideoToDailyCheck")
+
+  // Storage-Metadaten
+  storageProvider StorageProvider @default(LOCAL)
+  storageClass    StorageClass    @default(HOT)
+  // Optional getrennte Felder für Hot/Cold
+  hotUrl     String?
+  coldBucket String?
+  coldKey    String?
+  coldRegion String?
+  sizeBytes  Int?
+
+  // Restore-Workflow (On-Demand wiederherstellen)
+  restoreStatus      RestoreStatus @default(NONE)
+  restoreRequestedAt DateTime?
+  restoreReadyAt     DateTime?
+  restoreExpiresAt   DateTime?
+  restoreUrl         String?
+
+  // Zugriffsanfragen
+  accessRequests VideoAccessRequest[] @relation("VideoToRequests")
+
+  // Indizes für schnelle Abfragen
+  @@index([userId])
+  @@index([createdAt])
+  @@index([storageClass, archivedAt])
+  @@index([restoreStatus])
 }
 
 model Lead {
@@ -143,8 +229,7 @@ model Lead {
   name         String
   email        String?
   mobileNumber String?         @unique
-  stage        PipelineStage? @relation(fields: [stageId], references: [id])
-  stageId      String?
+  status       PipelineStatus  @default(INTERESSENT)
   closed       Boolean        @default(false)
   createdAt    DateTime       @default(now())
 }
@@ -182,12 +267,6 @@ model Question {
   surveyAnswers    SurveyQuestion[]
 }
 
-model PipelineStage {
-  id    String @id // Keine Default-UUID – ID kommt von Close!
-  name  String @unique
-  leads Lead[]
-}
-
 model Requirement {
   id          String   @id @default(uuid())
   coach       User     @relation(fields: [coachId], references: [id])
@@ -206,7 +285,7 @@ model DailyCheck {
   user   User   @relation(fields: [userId], references: [id])
   userId String
 
-  video   Video  @relation(fields: [videoId], references: [id])
+  video   Video  @relation("VideoToDailyCheck", fields: [videoId], references: [id])
   videoId String @unique
 
   date    DateTime
@@ -240,6 +319,9 @@ model MissedCheck {
   date      DateTime
   flagged   Boolean  @default(false)
   createdAt DateTime @default(now())
+
+  @@unique([userId, date])
+  @@index([userId, flagged])
 }
 
 enum FlagColor {
@@ -252,4 +334,78 @@ enum Role {
   ADMIN
   COACH
   CUSTOMER
+}
+
+enum StorageProvider {
+  LOCAL
+  S3
+  GCS
+  AZURE
+}
+
+enum StorageClass {
+  HOT
+  COLD
+  DEEP_ARCHIVE
+}
+
+enum RestoreStatus {
+  NONE
+  REQUESTED
+  IN_PROGRESS
+  READY
+  FAILED
+}
+
+enum AccessRequestStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  EXPIRED
+}
+
+enum PipelineStatus {
+  INTERESSENT
+  SETTING_TERMINIERT
+  SETTING_NOSHOW
+  DOWNSELL
+  CLOSING_TERMINIERT
+  CLOSING_NOSHOW
+  KUNDE
+  LOST
+}
+
+// Anfrage-Log für Video-Zugriffe (Coach/Admin klickt „Video holen“)
+model VideoAccessRequest {
+  id            String               @id @default(uuid())
+  video         Video                @relation("VideoToRequests", fields: [videoId], references: [id])
+  videoId       String
+  requestedBy   User                 @relation("UserToVideoRequests", fields: [requestedById], references: [id])
+  requestedById String
+  status        AccessRequestStatus  @default(PENDING)
+  signedUrl     String?
+  expiresAt     DateTime?
+  createdAt     DateTime             @default(now())
+  fulfilledAt   DateTime?
+
+  @@index([videoId])
+  @@index([requestedById])
+}
+
+// 🆕 Planbare Umfragen per Cron
+enum SurveyScheduleType {
+  ADMIN_TO_COACHES     // Admin-Fragen werden an alle Coaches gesendet
+  COACH_TO_CUSTOMERS   // Coach-Fragen werden an die jeweiligen Kunden gesendet
+}
+
+model SurveySchedule {
+  id             String             @id @default(uuid())
+  type           SurveyScheduleType
+  cronExpression String             // z.B. "10 14 * * 3"
+  timezone       String?            // z.B. "Europe/Berlin"
+  active         Boolean            @default(true)
+  comment        String?
+  lastRunAt      DateTime?
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
 }

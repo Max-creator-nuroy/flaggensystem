@@ -11,6 +11,8 @@ import phaseRoutes from "./routes/phaseRoutes";
 import absenceRoutes from "./routes/absenceRoutes";
 import flagRoutes from "./routes/flagRoutes";
 import adminRoutes from "./routes/adminRoutes";
+import videoArchiveRoutes from "./routes/videoArchiveRoutes";
+import leadRoutes from "./routes/leadRoutes";
 
 const app = express();
 app.listen(3000, () => console.log("Server läuft auf 3000"));
@@ -31,6 +33,8 @@ app.use("/phase", phaseRoutes);
 app.use("/absence", absenceRoutes);
 app.use("/close", closeRoutes);
 app.use("/flags", flagRoutes);
+app.use("/video-archive", videoArchiveRoutes);
+app.use("/leads", leadRoutes);
 
 app.get("/", (req, res) => {
   res.send("Server läuft!");

@@ -22,10 +22,8 @@ import CreateUser from "@/pages/Coach/createUser";
 import CreateCoach from "@/pages/Admin/CreateCoach";
 import ProfilePage from "@/pages/ProfilPage";
 // removed unused CoachStats import
-import CoachDetail from "@/pages/Admin/CoachDetail";
 import AdminAnalytics from "@/pages/Admin/AdminAnalytics";
-import RequirementDetail from "@/pages/Admin/RequirementDetail";
-// CoachAnalytics removed
+import CoachInbox from "@/pages/Coach/CoachInbox";
 
 export const router = createBrowserRouter([
   {
@@ -67,7 +65,7 @@ export const router = createBrowserRouter([
         children: [
           { path: "dashboard/CUSTOMER", element: <DashboardUser /> },
           { path: "dashboard/COACH", element: <DashboardCoach /> },
-          // coachAnalytics route removed
+          { path: "inbox/coach", element: <CoachInbox /> },
           { path: "flagList", element: <FlagList /> },
           { path: "customerFlags", element: <CustomerFlags /> },
           {
@@ -86,8 +84,7 @@ export const router = createBrowserRouter([
         children: [
           { path: "dashboard/ADMIN", element: <DashboardAdmin /> },
           { path: "statistic", element: <AdminAnalytics /> },
-          { path: "coachDetail", element: <CoachDetail /> },
-          { path: "requirementDetail", element: <RequirementDetail /> },
+          // { path: "coachDetail", element: <CoachDetail /> },
           { path: "dashboard/COACH", element: <DashboardCoach /> },
           // coachAnalytics route removed
           { path: "dashboard/CUSTOMER", element: <DashboardUser /> },

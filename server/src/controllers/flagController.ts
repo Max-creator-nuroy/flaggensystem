@@ -1,5 +1,6 @@
 import { FlagColor, PrismaClient } from "@prisma/client";
 import { Request, Response } from "express";
+import { AuthRequest } from "../middleware/authMiddleware";
 const prisma = new PrismaClient();
 
 export const getFlag = async (req: Request, res: Response) => {
@@ -114,6 +115,56 @@ export const deleteFlag = async (req: Request, res: Response) => {
   } catch (error) {
     console.error("Fehler beim Löschen der Flagge:", error);
     res.status(500).json({ error: "Fehler beim Löschen der Flagge" });
+  }
+};
+
+// DELETE /flags/deleteCascade/:id
+// Deletes the specified flag and recursively all source flags it was escalated from, including all links.
+export const deleteFlagCascade = async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.user || req.user.role !== "ADMIN") {
+      return res.status(403).json({ error: "Nur Admins dürfen Flaggen löschen" });
+    }
+
+    const flagId = req.params.id;
+
+    // Verify flag exists
+    const base = await prisma.flag.findUnique({ where: { id: flagId } });
+    if (!base) {
+      return res.status(404).json({ error: "Flagge nicht gefunden" });
+    }
+
+    // Collect all source flags recursively via escalatedFrom links
+    const toDelete = new Set<string>([flagId]);
+
+    const collectSources = async (id: string) => {
+      const links = await prisma.flagEscalationLink.findMany({
+        where: { toFlagId: id },
+        select: { fromFlagId: true },
+      });
+      for (const l of links) {
+        if (!toDelete.has(l.fromFlagId)) {
+          toDelete.add(l.fromFlagId);
+          await collectSources(l.fromFlagId);
+        }
+      }
+    };
+
+    await collectSources(flagId);
+
+    const ids = Array.from(toDelete);
+
+    await prisma.$transaction([
+      prisma.flagEscalationLink.deleteMany({
+        where: { OR: [{ toFlagId: { in: ids } }, { fromFlagId: { in: ids } }] },
+      }),
+      prisma.flag.deleteMany({ where: { id: { in: ids } } }),
+    ]);
+
+    res.json({ deletedIds: ids });
+  } catch (error) {
+    console.error("Fehler beim rekursiven Löschen der Flaggen:", error);
+    res.status(500).json({ error: "Fehler beim Löschen der Flaggen" });
   }
 };
 

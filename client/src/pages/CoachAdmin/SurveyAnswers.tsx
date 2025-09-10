@@ -16,6 +16,8 @@ import {
   IconButton,
   Select,
   createListCollection,
+  Button,
+  Dialog,
 } from "@chakra-ui/react";
 import { Portal } from "@chakra-ui/react";
 import { BsStar } from "react-icons/bs";
@@ -66,6 +68,7 @@ export default function SurveyAnswers() {
   const [customTo, setCustomTo] = useState(
     localStorage.getItem("timeFilterTo") || ""
   );
+  const [favoritesOpen, setFavoritesOpen] = useState(false);
 
   const token = localStorage.getItem("token");
   const coach = getUserFromToken(token);
@@ -163,8 +166,8 @@ export default function SurveyAnswers() {
           (q) =>
             !q.question.isDeleted &&
             !q.question.isRating &&
-            (q.answer?.toLowerCase().includes(term) ||
-              q.question.text.toLowerCase().includes(term))
+            ((q.answer?.toLowerCase().includes(term) ||
+              q.question.text.toLowerCase().includes(term)))
         );
         if (matchUser || matchedQuestions.length) {
           return {
@@ -241,7 +244,7 @@ export default function SurveyAnswers() {
   return (
     <Flex alignItems="flex-start" p={0} gap={0} minH="calc(100vh - 80px)">
       {/* Sidebar */}
-      <Box w={{ base: "100%", md: "280px" }} borderRight={{ md: "1px solid" }} borderColor={borderCol} p={6} position="sticky" top={0} maxH="100vh" overflowY="auto" bg="gray.50">
+      <Box w={{ base: "100%", md: "280px" }} borderRight={{ md: "1px solid" }} borderColor={borderCol} p={6} position="sticky" top={0} maxH="100vh" overflowY="auto" bg="var(--color-surface)">
         <Heading size="md" mb={1}>Umfragen</Heading>
         <Text fontSize="sm" color="gray.500" mb={4}>{coach.role === "COACH" ? "Coach-Ansicht" : "Admin-Ansicht"}</Text>
         <Stack gap={4}>
@@ -335,24 +338,16 @@ export default function SurveyAnswers() {
               onChange={(e) => setSearch(e.target.value)}
             />
           </Box>
-          {favoriteQuestions.length > 0 && (
-            <Box>
-              <Text fontSize="sm" fontWeight="semibold" mb={2}>Favoriten ({favoriteQuestions.length})</Text>
-              <Stack maxH="200px" overflowY="auto" pr={1} gap={3}>
-                {favoriteQuestions.map(({ q, user }) => (
-                  <QuestionItem
-                    key={q.id}
-                    q={q}
-                    user={user}
-                    borderCol={borderCol}
-                    onToggle={() => toggleFavorite(q.id)}
-                    onCopy={() => copy(q.answer)}
-                    isFav={true}
-                  />
-                ))}
-              </Stack>
-            </Box>
-          )}
+          <Box>
+            <Button
+              size="sm"
+              variant="outline"
+              w="100%"
+              onClick={() => setFavoritesOpen(true)}
+            >
+              Favoriten ansehen ({favoriteQuestions.length})
+            </Button>
+          </Box>
         </Stack>
       </Box>
 
@@ -366,7 +361,19 @@ export default function SurveyAnswers() {
           <Stack gap={8}>
             {groupedByUser.map(({ user, surveys }) => (
               <Box key={user.id}>
-                <Heading size="sm" mb={3}>{user.name} {user.last_name} <Badge ml={2}>{surveys.length}</Badge></Heading>
+                <Heading size="sm" mb={3}>
+                  {user.name} {user.last_name}{" "}
+                  <Badge
+                    ml={2}
+                    bg="var(--color-surface)"
+                    borderWidth="1px"
+                    borderColor="var(--color-border)"
+                    color="var(--color-text)"
+                    rounded="sm"
+                  >
+                    {surveys.length}
+                  </Badge>
+                </Heading>
                 <Flex gap={4} wrap="wrap">
                   {surveys.map((s) => (
                     <SurveyCard
@@ -386,7 +393,19 @@ export default function SurveyAnswers() {
           <Stack gap={10}>
             {groupedByDate.map(({ date, surveys }) => (
               <Box key={date}>
-                <Heading size="sm" mb={3}>{date} <Badge ml={2}>{surveys.length}</Badge></Heading>
+                <Heading size="sm" mb={3}>
+                  {date}{" "}
+                  <Badge
+                    ml={2}
+                    bg="var(--color-surface)"
+                    borderWidth="1px"
+                    borderColor="var(--color-border)"
+                    color="var(--color-text)"
+                    rounded="sm"
+                  >
+                    {surveys.length}
+                  </Badge>
+                </Heading>
                 <Flex gap={4} wrap="wrap">
                   {surveys.map((s) => (
                     <SurveyCard
@@ -417,13 +436,44 @@ export default function SurveyAnswers() {
           </Flex>
         )}
       </Box>
+
+      {/* Favorites Dialog */}
+      <Dialog.Root open={favoritesOpen} onOpenChange={(e) => setFavoritesOpen(e.open)}>
+        <Dialog.Backdrop />
+        <Dialog.Positioner>
+          <Dialog.Content bg="var(--color-surface)" borderWidth="1px" borderColor="var(--color-border)" zIndex={1400} w="xl" maxW="90vw">
+            <Dialog.Header>
+              <Dialog.Title>Favoriten ({favoriteQuestions.length})</Dialog.Title>
+            </Dialog.Header>
+            <Dialog.CloseTrigger />
+            <Dialog.Body maxH="70vh" overflowY="auto">
+              {favoriteQuestions.length === 0 ? (
+                <Text color="gray.500">Keine Favoriten vorhanden.</Text>
+              ) : (
+                <Stack gap={3}>
+                  {favoriteQuestions.map(({ q, user }) => (
+                    <QuestionItem
+                      key={q.id}
+                      q={q}
+                      user={user}
+                      borderCol={borderCol}
+                      onToggle={() => toggleFavorite(q.id)}
+                      onCopy={() => copy(q.answer)}
+                      isFav={true}
+                    />
+                  ))}
+                </Stack>
+              )}
+            </Dialog.Body>
+          </Dialog.Content>
+        </Dialog.Positioner>
+      </Dialog.Root>
     </Flex>
   );
 }
 
 function QuestionItem({
   q,
-  user,
   onToggle,
   onCopy,
   isFav,
@@ -436,33 +486,31 @@ function QuestionItem({
   isFav: boolean;
   borderCol: string;
 }) {
+  const isRatingQuestion = !!q.question.isRating;
+  let displayRating: number | null = null;
+  if (isRatingQuestion) {
+    if (typeof q.rating === "number") displayRating = q.rating;
+    else {
+      const n = Number(q.answer);
+      displayRating = Number.isFinite(n) ? n : null;
+    }
+  }
+
+  const answerCol = useColorModeValue("gray.300", "gray.400");
+
   return (
-    <Box borderBottom="1px solid" borderColor={borderCol} pb={3}>
-      <Flex justify="space-between" gap={3}>
+    <Box py={4} borderBottom="1px solid" borderColor={borderCol}>
+      <Flex justify="space-between" align="start" gap={3}>
         <Box flex="1">
-          <Text fontWeight="bold">
-            {user.name} {user.last_name}
-          </Text>
-          <Text fontWeight="semibold">{q.question.text}</Text>
-          {q.question.isRating ? (
-            <Badge mt={1} colorScheme="purple">
-              Rating: {q.rating ?? "–"}
-            </Badge>
+          <Text fontWeight="bold">{q.question.text}</Text>
+          {isRatingQuestion ? (
+            <Text mt={2} color={answerCol}>{displayRating !== null ? displayRating : "—"}</Text>
           ) : (
-            <>
-              <Text mt={1} whiteSpace="pre-wrap">
-                {q.answer || "—"}
-              </Text>
-              {typeof q.rating === "number" && (
-                <Badge mt={1} colorScheme="purple">
-                  Rating: {q.rating}
-                </Badge>
-              )}
-            </>
+            <Text mt={2} color={answerCol} whiteSpace="pre-wrap">{q.answer || "—"}</Text>
           )}
         </Box>
         <Flex direction="column" gap={2}>
-          {!q.question.isRating && (
+          {!isRatingQuestion && q.answer && (
             <IconButton size="sm" aria-label="Kopieren" onClick={onCopy}>
               <CgCopy />
             </IconButton>
@@ -496,7 +544,14 @@ function SurveyCard({
   copy: (text: string) => void;
 }) {
   return (
-    <Card.Root w="360px" flexShrink={0}>
+    <Card.Root
+      w="360px"
+      flexShrink={0}
+      bg="var(--color-surface)"
+      borderWidth="1px"
+      borderColor="var(--color-border)"
+      borderRadius="md"
+    >
       <CardHeader pb={2}>
         <Heading size="xs">
           {survey.user.name} {survey.user.last_name}

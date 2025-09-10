@@ -161,7 +161,16 @@ export async function getRequirementDetail(req: Request, res: Response) {
       where: { id },
       include: {
         coach: { select: { id: true, name: true, last_name: true } },
-        Flag: { select: { id: true, color: true, createdAt: true, userId: true }, orderBy: { createdAt: 'desc' } },
+        Flag: {
+          select: {
+            id: true,
+            color: true,
+            createdAt: true,
+            userId: true,
+            user: { select: { id: true, name: true, last_name: true } },
+          },
+          orderBy: { createdAt: 'desc' }
+        },
         entries: { where: { createdAt: { gte: fromDate } }, select: { id: true, fulfilled: true, createdAt: true, dailyCheck: { select: { userId: true } } } }
       }
     });
@@ -203,17 +212,34 @@ export async function getCoachDetail(req: Request, res: Response) {
     const fromDate = new Date();
     fromDate.setDate(fromDate.getDate() - (isNaN(days) ? 30 : days));
 
-    // Coach basic & linked customers
+    // Coach basic & linked customers (use customerLinks per schema)
     const coach = await prisma.user.findUnique({
-      where: { id, role: Role.COACH },
+      where: { id },
       select: {
-        id: true, name: true, last_name: true, email: true, mobileNumber: true,
-        coachLinks: { select: { customer: { select: { id: true, name: true, last_name: true } } } },
+        id: true,
+        name: true,
+        last_name: true,
+        email: true,
+        mobileNumber: true,
+        customerLinks: {
+          select: {
+            customer: {
+              select: { id: true, name: true, last_name: true, role: true, isDeleted: true }
+            }
+          }
+        },
         requiremnt: { select: { id: true, title: true } },
       }
     });
     if (!coach) return res.status(404).json({ success:false, error:'NOT_FOUND' });
-    const customerIds = coach.coachLinks.map(l => l.customer?.id).filter(Boolean) as string[];
+
+    // Only active, non-deleted customers linked to this coach
+    const linkedCustomers = coach.customerLinks
+      .map((l) => l.customer)
+      .filter((c): c is { id: string; name: string; last_name: string; role: Role; isDeleted: boolean } => !!c)
+      .filter((c) => c.role === Role.CUSTOMER && !c.isDeleted);
+
+    const customerIds = linkedCustomers.map((c) => c.id);
 
     // Flags for customers in period
     const flags = await prisma.flag.findMany({
@@ -228,11 +254,10 @@ export async function getCoachDetail(req: Request, res: Response) {
       if (f.color===FlagColor.RED) customerFlagAgg[f.userId].red++; else if (f.color===FlagColor.YELLOW) customerFlagAgg[f.userId].yellow++; else if (f.color===FlagColor.GREEN) customerFlagAgg[f.userId].green++; 
     });
 
-    const customers = coach.coachLinks.map(l => {
-      const c = l.customer; if (!c) return null;
+    const customers = linkedCustomers.map((c) => {
       const agg = customerFlagAgg[c.id] || { red:0,yellow:0,green:0 };
-      return { id:c.id, name:c.name, last_name:c.last_name, ...agg, total: agg.red+agg.yellow+agg.green };
-    }).filter(Boolean);
+      return { id: c.id, name: c.name, last_name: c.last_name, ...agg, total: agg.red + agg.yellow + agg.green };
+    });
 
     // Flag timeline (daily new counts per color)
     const dayMap: Record<string,{ red:number; yellow:number; green:number; }>= {};
@@ -275,9 +300,9 @@ export async function getCoachDetail(req: Request, res: Response) {
     return res.json({ success:true, data: {
       coach: { id: coach.id, name: coach.name, last_name: coach.last_name, email: coach.email, mobileNumber: coach.mobileNumber },
       days: days,
-      customersCount: customers.length,
-      flagTotals: { red: totals.RED||0, yellow: totals.YELLOW||0, green: totals.GREEN||0 },
+      customersCount: linkedCustomers.length,
       customers,
+      flagTotals: { red: totals.RED||0, yellow: totals.YELLOW||0, green: totals.GREEN||0 },
       timeline,
       requirementFlags
     }});

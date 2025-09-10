@@ -3,11 +3,9 @@ import {
   Stack,
   Heading,
   Field,
-  FieldLabel,
   Input,
   Button,
-  Container,
-  Flex,
+  Flex
 } from "@chakra-ui/react";
 import { Form, Link, useNavigate } from "react-router-dom";
 import { useState } from "react";
@@ -20,10 +18,12 @@ export default function Login() {
   const [email, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setSubmitting(true);
 
     let toastId: any;
     try {
@@ -56,48 +56,67 @@ export default function Login() {
       toaster.create({ title: "Fehler", description: msg, type: "error" });
     } finally {
       if (toastId) toaster.dismiss(toastId);
+      setSubmitting(false);
     }
   };
 
   return (
     <Flex
-      h="100vh"
-      bg="gray.200"
+      minH="100vh"
+      bgGradient="linear(to-br, #0b1220, #0a0f18)"
       align="center"
       justify="center"
-      flexDirection="column"
+      px={4}
     >
-      <Stack boxShadow="md" bg="blue.300" p="20" rounded="sm" display="flex">
-        <Heading as="h1" display="flex">
-          Log in
-        </Heading>
+      <Stack
+        as="section"
+        maxW="md"
+        w="full"
+        
+        p={{ base: 6, md: 8 }}
+        rounded="xl"
+        bg="var(--color-surface)"
+        borderWidth="1px"
+        borderColor="var(--color-border)"
+        boxShadow="xl"
+      >
+        <Stack  textAlign="center">
+          <Heading as="h1" size="lg">Log in</Heading>
+          <Text color="var(--color-muted)">Melde dich mit deinen Zugangsdaten an.</Text>
+        </Stack>
+
         <Form onSubmit={handleSubmit}>
           <Field.Root mb={3}>
-            <FieldLabel>E-Mail Adresse</FieldLabel>
+            <Field.Label>E-Mail Adresse</Field.Label>
             <Input
-              type="text"
+              type="email"
+              placeholder="email@example.de"
               value={email}
               onChange={(e) => setUsername(e.target.value)}
+              bg="var(--color-surface)"
+              borderColor="var(--color-border)"
             />
           </Field.Root>
 
           <Field.Root>
-            <FieldLabel>Passwort</FieldLabel>
+            <Field.Label>Passwort</Field.Label>
             <PasswordInput
-              type="text"
+              type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
           </Field.Root>
-          <Container as="div" display="flex" justifyContent="center">
-            <Button mt={5} type="submit">
-              Anmelden
-            </Button>
-          </Container>
-          {error && <p style={{ color: "red" }}>{error}</p>}
+
+          {error && (
+            <Text mt={3} color="red.400" textAlign="center">{error}</Text>
+          )}
+
+          <Button mt={5} type="submit" w="full" colorScheme="teal" loading={submitting}>
+            Anmelden
+          </Button>
         </Form>
 
-        <Stack justify="center" color="gray.600" borderSpacing="3">
+        <Stack justify="center" color="gray.400">
           <Text as="div" textAlign="center">
             <Link to="forgotPassword">
               <span>Passwort vergessen?</span>

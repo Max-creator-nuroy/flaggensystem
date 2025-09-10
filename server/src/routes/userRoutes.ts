@@ -11,8 +11,13 @@ import {
   getAllCustomers,
   updateEmail,
   changePassword,
+  disableCoach,
+  enableCoach,
+  disableCustomer,
+  enableCustomer,
 } from "../controllers/userController";
 import { authenticateToken } from "../middleware/authMiddleware";
+import { createJournalEntry, listJournalEntries, updateJournalEntry, deleteJournalEntry } from "../controllers/journalController";
 
 const router = Router();
 
@@ -33,7 +38,21 @@ router.get("/getUser/:userId", authenticateToken, getUser);
 router.get("/getAllCoaches", authenticateToken, getAllCoaches);
 router.get("/getAllCustomer", authenticateToken, getAllCustomers);
 
+// Admin: Coach deaktivieren/aktivieren
+router.patch("/disableCoach/:id", authenticateToken, disableCoach);
+router.patch("/enableCoach/:id", authenticateToken, enableCoach);
+
+// Admin: Customer deaktivieren/aktivieren
+router.patch("/disableCustomer/:id", authenticateToken, disableCustomer);
+router.patch("/enableCustomer/:id", authenticateToken, enableCustomer);
+
 router.get("/:id", authenticateToken, getUser);
 router.patch("/updateUser/:id", authenticateToken, updateUser);
+
+// Journal (Coach only)
+router.post("/journal/:customerId", authenticateToken, createJournalEntry);
+router.get("/journal/:customerId", authenticateToken, listJournalEntries);
+router.patch("/journal/entry/:id", authenticateToken, updateJournalEntry);
+router.delete("/journal/entry/:id", authenticateToken, deleteJournalEntry);
 
 export default router;

@@ -76,12 +76,10 @@ export default function AdminCustomerList() {
 
     // Filter nach Flag-Status
     if (filterStatus === "atRisk") {
-      const redFlags =
-        customer.flags?.filter((flag: any) => flag.color === "RED").length || 0;
+      const redFlags = (customer.flags?.filter((flag: any) => flag.color === "RED")?.length ?? 0);
       return redFlags >= 5 && redFlags < 10;
     } else if (filterStatus === "lost") {
-      const redFlags =
-        customer.flags?.filter((flag: any) => flag.color === "RED").length || 0;
+      const redFlags = (customer.flags?.filter((flag: any) => flag.color === "RED")?.length ?? 0);
       return redFlags >= 10;
     }
 
@@ -106,12 +104,12 @@ export default function AdminCustomerList() {
           bv = b.isAffiliate ? 1 : 0;
           break;
         case 'yellow':
-          av = a.flags?.filter((f:any)=> f.color==='YELLOW' && f.escalatedTo.length===0).length || 0;
-          bv = b.flags?.filter((f:any)=> f.color==='YELLOW' && f.escalatedTo.length===0).length || 0;
+          av = (a.flags?.filter((f:any)=> f.color==='YELLOW' && ((f.escalatedTo?.length ?? 0)===0))?.length ?? 0);
+          bv = (b.flags?.filter((f:any)=> f.color==='YELLOW' && ((f.escalatedTo?.length ?? 0)===0))?.length ?? 0);
           break;
         case 'red':
-          av = a.flags?.filter((f:any)=> f.color==='RED').length || 0;
-          bv = b.flags?.filter((f:any)=> f.color==='RED').length || 0;
+          av = (a.flags?.filter((f:any)=> f.color==='RED')?.length ?? 0);
+          bv = (b.flags?.filter((f:any)=> f.color==='RED')?.length ?? 0);
           break;
       }
       if (av < bv) return sortDir==='asc' ? -1 : 1;
@@ -130,8 +128,8 @@ export default function AdminCustomerList() {
       `${c.name} ${c.last_name}`,
       c.mobileNumber || '',
       c.isAffiliate ? 'Affiliate' : 'Kunde',
-      c.flags?.filter((f:any)=> f.color==='YELLOW' && f.escalatedTo.length===0).length || 0,
-      c.flags?.filter((f:any)=> f.color==='RED').length || 0,
+      (c.flags?.filter((f:any)=> f.color==='YELLOW' && ((f.escalatedTo?.length ?? 0)===0))?.length ?? 0),
+      (c.flags?.filter((f:any)=> f.color==='RED')?.length ?? 0),
     ]);
     const csv = [headers, ...rows].map(r=> r.join(';')).join('\n');
     const blob = new Blob([csv], {type: 'text/csv;charset=utf-8;'});
@@ -142,10 +140,10 @@ export default function AdminCustomerList() {
   };
 
   const totalCustomers = customerList.length;
-  const avgRed = totalCustomers ? (customerList.reduce((acc,c)=> acc + (c.flags?.filter((f:any)=> f.color==='RED').length ||0),0)/ totalCustomers).toFixed(2) : '0';
+  const avgRed = totalCustomers ? (customerList.reduce((acc,c)=> acc + ((c.flags?.filter((f:any)=> f.color==='RED')?.length ?? 0)),0)/ totalCustomers).toFixed(2) : '0';
 
   return (
-    <Box p={4} maxW="100%" display="flex" flexDirection="column" gap={4}>
+    <Box p={4} borderWidth="1px" rounded="lg" bg="var(--color-surface)" borderColor="var(--color-border)">
       <Flex justify="space-between" wrap="wrap" gap={6}>
         <Box minW="260px" flex="1">
           <Heading size="md" mb={3}>
@@ -153,7 +151,8 @@ export default function AdminCustomerList() {
           </Heading>
           <Input
             placeholder="Suche nach Name, Nummer oder Rolle"
-            bg="white"
+            bg="var(--color-surface)"
+            borderColor="var(--color-border)"
             shadow="sm"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -165,10 +164,14 @@ export default function AdminCustomerList() {
             <Text
               px={3}
               py={1}
-              bg={filterStatus==='atRisk' ? 'yellow.400' : 'yellow.100'}
-              color={filterStatus==='atRisk' ? 'white':'yellow.700'}
+              bg={filterStatus==='atRisk' ? 'rgba(255,255,255,0.10)' : 'var(--color-badge-bg)'}
+              color="var(--color-text)"
+              border="1px solid var(--color-border)"
+              borderLeftWidth={filterStatus==='atRisk' ? '4px' : '1px'}
+              borderLeftColor="#a16207"
               borderRadius="full"
               cursor="pointer"
+              _hover={{ bg: 'rgba(255,255,255,0.12)' }}
               onClick={()=> setFilterStatus(filterStatus==='atRisk' ? 'all':'atRisk')}
               fontWeight="medium"
             >
@@ -177,17 +180,21 @@ export default function AdminCustomerList() {
             <Text
               px={3}
               py={1}
-              bg={filterStatus==='lost' ? 'red.500' : 'red.100'}
-              color={filterStatus==='lost' ? 'white':'red.700'}
+              bg={filterStatus==='lost' ? 'rgba(255,255,255,0.10)' : 'var(--color-badge-bg)'}
+              color="var(--color-text)"
+              border="1px solid var(--color-border)"
+              borderLeftWidth={filterStatus==='lost' ? '4px' : '1px'}
+              borderLeftColor="#b91c1c"
               borderRadius="full"
               cursor="pointer"
+              _hover={{ bg: 'rgba(255,255,255,0.12)' }}
               onClick={()=> setFilterStatus(filterStatus==='lost' ? 'all':'lost')}
               fontWeight="medium"
             >
               Verloren: {garantyLost}
             </Text>
-            <Text px={3} py={1} bg="gray.100" color="gray.700" borderRadius="full">Gesamt: {totalCustomers}</Text>
-            <Text px={3} py={1} bg="purple.100" color="purple.700" borderRadius="full">∅ Rot: {avgRed}</Text>
+            <Text px={3} py={1} bg="rgba(255,255,255,0.06)" color="var(--color-text)" borderRadius="full">Gesamt: {totalCustomers}</Text>
+            <Text px={3} py={1} bg="rgba(168,85,247,0.15)" color="var(--color-text)" borderRadius="full">∅ Rot: {avgRed}</Text>
           </Flex>
         </Box>
         <Flex gap={4} align="flex-start" fontSize="sm">
@@ -195,66 +202,73 @@ export default function AdminCustomerList() {
             as="span"
             px={3}
             py={1}
-            bg="gray.100"
+            bg="rgba(255,255,255,0.06)"
+            color="var(--color-text)"
+            border="1px solid var(--color-border)"
             borderRadius="md"
             cursor={loading ? 'not-allowed':'pointer'}
             opacity={loading?0.6:1}
+            _hover={loading ? {} : { bg: 'rgba(255,255,255,0.10)' }}
             onClick={()=> !loading && fetchCustomer()}
           >{loading? 'Lade...' : 'Aktualisieren'}</Text>
           <Text
             as="span"
             px={3}
             py={1}
-            bg="gray.100"
+            bg="rgba(255,255,255,0.06)"
+            color="var(--color-text)"
+            border="1px solid var(--color-border)"
             borderRadius="md"
             cursor="pointer"
+            _hover={{ bg: 'rgba(255,255,255,0.10)' }}
             onClick={exportCsv}
           >Export CSV</Text>
         </Flex>
       </Flex>
 
 
-      <Box overflowX="auto" borderRadius="lg" shadow="sm" bg='white'>
-        <Table.Root size="sm" stickyHeader interactive>
+      <Box
+        overflowX="auto"
+        borderRadius="lg"
+        shadow="sm"
+        bg='var(--color-surface)'
+      >
+        <Table.Root size='sm' stickyHeader interactive className="admin-table">
           <Table.Header>
-            <Table.Row bg="gray.100">
-              <Table.ColumnHeader onClick={()=>toggleSort('name')} _hover={{cursor:'pointer', bg:'gray.50'}}>
+            <Table.Row bg="rgba(255,255,255,0.04)" borderBottom="1px solid var(--color-border)">
+              <Table.ColumnHeader onClick={()=>toggleSort('name')} _hover={{cursor:'pointer', bg:'rgba(255,255,255,0.06)'}}>
                 <Flex align='center' gap={1}>Name {sortKey==='name' && (sortDir==='asc' ? <FiChevronUp /> : <FiChevronDown />)}</Flex>
               </Table.ColumnHeader>
-              <Table.ColumnHeader onClick={()=>toggleSort('phone')} _hover={{cursor:'pointer', bg:'gray.50'}}>
+              <Table.ColumnHeader onClick={()=>toggleSort('phone')} _hover={{cursor:'pointer', bg:'rgba(255,255,255,0.06)'}}>
                 <Flex align='center' gap={1}>Telefon {sortKey==='phone' && (sortDir==='asc' ? <FiChevronUp /> : <FiChevronDown />)}</Flex>
               </Table.ColumnHeader>
-              <Table.ColumnHeader onClick={()=>toggleSort('role')} _hover={{cursor:'pointer', bg:'gray.50'}}>
+              <Table.ColumnHeader onClick={()=>toggleSort('role')} _hover={{cursor:'pointer', bg:'rgba(255,255,255,0.06)'}}>
                 <Flex align='center' gap={1}>Rolle {sortKey==='role' && (sortDir==='asc' ? <FiChevronUp /> : <FiChevronDown />)}</Flex>
               </Table.ColumnHeader>
-              <Table.ColumnHeader textAlign='end' onClick={()=>toggleSort('yellow')} _hover={{cursor:'pointer', bg:'gray.50'}}>
+              <Table.ColumnHeader textAlign='end' onClick={()=>toggleSort('yellow')} _hover={{cursor:'pointer', bg:'rgba(255,255,255,0.06)'}}>
                 <Flex justify='flex-end' align='center' gap={1}>Gelb {sortKey==='yellow' && (sortDir==='asc' ? <FiChevronUp /> : <FiChevronDown />)}</Flex>
               </Table.ColumnHeader>
-              <Table.ColumnHeader textAlign='end' onClick={()=>toggleSort('red')} _hover={{cursor:'pointer', bg:'gray.50'}}>
+              <Table.ColumnHeader textAlign='end' onClick={()=>toggleSort('red')} _hover={{cursor:'pointer', bg:'rgba(255,255,255,0.06)'}}>
                 <Flex justify='flex-end' align='center' gap={1}>Rot {sortKey==='red' && (sortDir==='asc' ? <FiChevronUp /> : <FiChevronDown />)}</Flex>
               </Table.ColumnHeader>
             </Table.Row>
           </Table.Header>
           <Table.Body>
-            {sortedCustomers.map((customer:any) => {
-              const yellow = customer.flags?.filter((f:any)=> f.color==='YELLOW' && f.escalatedTo.length===0).length || 0;
-              const red = customer.flags?.filter((f:any)=> f.color==='RED').length || 0;
-              const lost = red >= 10; const risk = !lost && red >=5;
-              return (
-                <Table.Row
-                  key={customer.id}
-                  onClick={() => handleClick(customer.id)}
-                  _hover={{ bg: 'gray.50', cursor: 'pointer' }}
-                  bg={lost ? 'red.50' : risk ? 'yellow.50' : undefined}
-                >
-                  <Table.Cell>{customer.name} {customer.last_name}</Table.Cell>
-                  <Table.Cell>{customer.mobileNumber}</Table.Cell>
-                  <Table.Cell>{customer.isAffiliate ? 'Affiliate' : 'Kunde'}</Table.Cell>
-                  <Table.Cell textAlign='end' color='yellow.600'>{yellow}</Table.Cell>
-                  <Table.Cell textAlign='end' color='red.600'>{red}</Table.Cell>
-                </Table.Row>
-              );
-            })}
+            {sortedCustomers.map((c) => (
+              <Table.Row
+                key={c.id}
+                bg='var(--color-surface)'
+                borderBottom='1px solid #0a0f18'
+                _hover={{ bg:'rgba(0,0,0,0.22)' }}
+                onClick={() => handleClick(c.id)}
+              >
+                <Table.Cell>{c.name} {c.last_name}</Table.Cell>
+                <Table.Cell>{c.mobileNumber}</Table.Cell>
+                <Table.Cell>{c.isAffiliate ? 'Affiliate' : 'Kunde'}</Table.Cell>
+                <Table.Cell textAlign='end' color='yellow.600'>{(c.flags?.filter((f:any)=> f.color==='YELLOW' && ((f.escalatedTo?.length ?? 0)===0))?.length ?? 0)}</Table.Cell>
+                <Table.Cell textAlign='end' color='red.600'>{(c.flags?.filter((f:any)=> f.color==='RED')?.length ?? 0)}</Table.Cell>
+              </Table.Row>
+            ))}
           </Table.Body>
         </Table.Root>
       </Box>

@@ -4,9 +4,121 @@ import bcrypt from "bcrypt";
 
 const prisma = new PrismaClient();
 
+// Admin: Coach deaktivieren (soft delete)
+export const disableCoach = async (req: Request, res: Response) => {
+  try {
+    // @ts-ignore auth user injected by middleware
+    if (!req.user || req.user.role !== "ADMIN") {
+      return res
+        .status(403)
+        .json({ error: "Nur Admins dürfen Coaches deaktivieren" });
+    }
+    const { id } = req.params;
+    const coach = await prisma.user.findUnique({ where: { id } });
+    if (!coach || coach.role !== "COACH") {
+      return res.status(404).json({ error: "Coach nicht gefunden" });
+    }
+    const updated = await prisma.user.update({
+      where: { id },
+      data: { isDeleted: true },
+    });
+    return res.json({
+      message: "Coach deaktiviert",
+      user: { id: updated.id, isDeleted: updated.isDeleted },
+    });
+  } catch (error) {
+    console.error("Fehler beim Deaktivieren des Coach:", error);
+    return res.status(500).json({ error: "Fehler beim Deaktivieren des Coach" });
+  }
+};
+
+// Admin: Coach wieder aktivieren
+export const enableCoach = async (req: Request, res: Response) => {
+  try {
+    // @ts-ignore auth user injected by middleware
+    if (!req.user || req.user.role !== "ADMIN") {
+      return res
+        .status(403)
+        .json({ error: "Nur Admins dürfen Coaches aktivieren" });
+    }
+    const { id } = req.params;
+    const coach = await prisma.user.findUnique({ where: { id } });
+    if (!coach || coach.role !== "COACH") {
+      return res.status(404).json({ error: "Coach nicht gefunden" });
+    }
+    const updated = await prisma.user.update({
+      where: { id },
+      data: { isDeleted: false },
+    });
+    return res.json({
+      message: "Coach aktiviert",
+      user: { id: updated.id, isDeleted: updated.isDeleted },
+    });
+  } catch (error) {
+    console.error("Fehler beim Aktivieren des Coach:", error);
+    return res.status(500).json({ error: "Fehler beim Aktivieren des Coach" });
+  }
+};
+
+// Admin: Customer deaktivieren (soft delete)
+export const disableCustomer = async (req: Request, res: Response) => {
+  try {
+    // @ts-ignore injected by auth middleware
+    if (!req.user || req.user.role !== "ADMIN") {
+      return res
+        .status(403)
+        .json({ error: "Nur Admins dürfen Kunden deaktivieren" });
+    }
+    const { id } = req.params;
+    const user = await prisma.user.findUnique({ where: { id } });
+    if (!user || user.role !== "CUSTOMER") {
+      return res.status(404).json({ error: "Kunde nicht gefunden" });
+    }
+    const updated = await prisma.user.update({
+      where: { id },
+      data: { isDeleted: true },
+    });
+    return res.json({
+      message: "Kunde deaktiviert",
+      user: { id: updated.id, isDeleted: updated.isDeleted },
+    });
+  } catch (error) {
+    console.error("Fehler beim Deaktivieren des Kunden:", error);
+    return res.status(500).json({ error: "Fehler beim Deaktivieren des Kunden" });
+  }
+};
+
+// Admin: Customer wieder aktivieren
+export const enableCustomer = async (req: Request, res: Response) => {
+  try {
+    // @ts-ignore injected by auth middleware
+    if (!req.user || req.user.role !== "ADMIN") {
+      return res
+        .status(403)
+        .json({ error: "Nur Admins dürfen Kunden aktivieren" });
+    }
+    const { id } = req.params;
+    const user = await prisma.user.findUnique({ where: { id } });
+    if (!user || user.role !== "CUSTOMER") {
+      return res.status(404).json({ error: "Kunde nicht gefunden" });
+    }
+    const updated = await prisma.user.update({
+      where: { id },
+      data: { isDeleted: false },
+    });
+    return res.json({
+      message: "Kunde aktiviert",
+      user: { id: updated.id, isDeleted: updated.isDeleted },
+    });
+  } catch (error) {
+    console.error("Fehler beim Aktivieren des Kunden:", error);
+    return res.status(500).json({ error: "Fehler beim Aktivieren des Kunden" });
+  }
+};
+
 // GET /users/createCoach
 export const createCoach = async (req: Request, res: Response) => {
-  const { email,  name, last_name, role, mobileNumber } = req.body;
+  const { email, name, last_name, role, mobileNumber } = req.body;
 
   if (!email || !name || !last_name || !role || !mobileNumber) {
     return res
@@ -20,7 +132,7 @@ export const createCoach = async (req: Request, res: Response) => {
       return res.status(400).json({ message: "User existiert bereits" });
     }
 
-    const hashed = await bcrypt.hash(name+last_name, 10);
+    const hashed = await bcrypt.hash(name + last_name, 10);
     const user = await prisma.user.create({
       data: { email, password: hashed, name, last_name, role, mobileNumber },
     });
@@ -34,14 +146,14 @@ export const createCoach = async (req: Request, res: Response) => {
 export const createUser = async (req: Request, res: Response) => {
   try {
     const coachId = req.params.coachId;
-    const { email, password, name, last_name,mobileNumber, isAffiliate, phaseId, isCustomer } = req.body;
+    const { email, password, name, last_name, mobileNumber, isAffiliate, phaseId, isCustomer } = req.body;
 
     const existingUser = await prisma.user.findUnique({ where: { email } });
     if (existingUser) {
       return res.status(400).json({ message: "Benutzer existiert bereits" });
     }
 
-    const hashed = await bcrypt.hash(name+last_name, 10);
+    const hashed = await bcrypt.hash(name + last_name, 10);
     const newUser = await prisma.user.create({
       data: {
         email,
@@ -127,7 +239,7 @@ export const getUser = async (req: Request, res: Response) => {
           },
         },
         ...(isAffiliate && {
-          leads: { include: { stage: true } },
+          leads: true,
         }),
       },
     });
@@ -239,10 +351,13 @@ export const getCustomersByCoach = async (req: Request, res: Response) => {
             last_name: true,
             email: true,
             mobileNumber: true,
+            role: true,
             isAffiliate: true,
+            isCustomer: true,
+            isDeleted: true,
             flags: {
               include: {
-                requirement: true, // das lädt zu jeder Flag das zugehörige Requirement
+                requirement: true,
                 escalatedFrom: true,
                 escalatedTo: true,
               },
@@ -254,7 +369,7 @@ export const getCustomersByCoach = async (req: Request, res: Response) => {
 
     const customers = coachCustomers
       .map((entry) => entry.customer)
-      .filter(Boolean); // falls mal null drin ist
+      .filter((c) => c && !c.isDeleted);
 
     res.json(customers);
   } catch (error) {
@@ -316,7 +431,7 @@ export const getCoachByUser = async (req: Request, res: Response) => {
 export const getAllCoaches = async (req: Request, res: Response) => {
   try {
     const coaches = await prisma.user.findMany({
-      where: { role: "COACH" },
+      where: { role: "COACH", isDeleted: false },
       include: {
         customerLinks: {
           select: {
@@ -343,19 +458,13 @@ export const getAllCoaches = async (req: Request, res: Response) => {
 export const getAllCustomers = async (req: Request, res: Response) => {
   try {
     const users = await prisma.user.findMany({
-      where: { role: "CUSTOMER" },
+      where: { role: "CUSTOMER", isDeleted: false },
       include: {
         absences: {
           orderBy: { from: "desc" },
         },
         phase: true,
-        flags: {
-          include: {
-            requirement: true, // das lädt zu jeder Flag das zugehörige Requirement
-            escalatedFrom: true,
-            escalatedTo: true,
-          },
-        },
+        flags: true,
       },
     });
 
@@ -370,7 +479,9 @@ export const changePassword = async (req: Request, res: Response) => {
   const { currentPassword, newPassword } = req.body;
 
   if (!currentPassword || !newPassword) {
-    return res.status(400).json({ message: "Aktuelles und neues Passwort sind erforderlich." });
+    return res
+      .status(400)
+      .json({ message: "Aktuelles und neues Passwort sind erforderlich." });
   }
 
   try {

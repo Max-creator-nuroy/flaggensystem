@@ -12,7 +12,7 @@ import {
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 
-export default function AdminCustomerList() {
+export default function CoachCustomerList() {
   const token = localStorage.getItem("token");
   const [customerList, setCustomerList] = useState<any[]>([]);
   const [atRisk, setAtRisk] = useState<number>(0);
@@ -26,6 +26,9 @@ export default function AdminCustomerList() {
   );
   const [sortKey, setSortKey] = useState<'name' | 'phone' | 'role' | 'yellow' | 'red'>('name');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+  // Replace single role filter with independent toggles
+  const [showCustomers, setShowCustomers] = useState(true);
+  const [showAffiliates, setShowAffiliates] = useState(true);
 
   const handleClick = (userId: string) => {
     navigate(`/dashboard/CUSTOMER?userId=${userId}`);
@@ -72,25 +75,39 @@ export default function AdminCustomerList() {
     fetchCustomer();
   }, []);
 
-  // erweitertes Filtern nach Suchbegriff UND Status
+  // helper for role sorting weight
+  const roleWeight = (u:any) => {
+    const isCust = u.isCustomer ?? (u.role === 'CUSTOMER');
+    const isAff = !!u.isAffiliate;
+    return (isAff && isCust) ? 2 : (isAff ? 1 : (isCust ? 0 : -1));
+  };
+
+  // erweitertes Filtern nach Suchbegriff, Status, Rolle
   const filteredCustomers = customerList.filter((customer: any) => {
-    // Suche filtern
-    const fullText = `${customer.name} ${customer.last_name} ${customer.mobileNumber
-      } ${customer.isAffiliate ? "Affiliate" : "Kunde"}`.toLowerCase();
+    const isCust = (customer.isCustomer ?? (customer.role === 'CUSTOMER')) as boolean;
+    const isAff = !!customer.isAffiliate;
+
+    // Suche filtern (inkl. beider Rollenbezeichnungen, falls beides)
+    const roleTextParts:string[] = [];
+    if (isAff) roleTextParts.push("Affiliate");
+    if (isCust) roleTextParts.push("Kunde");
+    const fullText = `${customer.name} ${customer.last_name} ${customer.mobileNumber} ${roleTextParts.join(" ")}`.toLowerCase();
     if (!fullText.includes(searchTerm.toLowerCase())) return false;
+
+    const redFlags = customer.flags?.filter((flag: any) => flag.color === "RED").length || 0;
 
     // Filter nach Flag-Status
     if (filterStatus === "atRisk") {
-      const redFlags =
-        customer.flags?.filter((flag: any) => flag.color === "RED").length || 0;
-      return redFlags >= 5 && redFlags < 10;
+      if (!(redFlags >= 5 && redFlags < 10)) return false;
     } else if (filterStatus === "lost") {
-      const redFlags =
-        customer.flags?.filter((flag: any) => flag.color === "RED").length || 0;
-      return redFlags >= 10;
+      if (!(redFlags >= 10)) return false;
     }
 
-    return true; // "all"
+    // Rollen-Toggles (OR-Logik): zeigen, wenn eine der gewählten Rollen zutrifft
+    const roleMatch = ((showCustomers && isCust) || (showAffiliates && isAff));
+    if (!roleMatch) return false;
+
+    return true; // alles bestanden
   });
 
   const sortedCustomers = [...filteredCustomers].sort((a,b) => {
@@ -105,8 +122,8 @@ export default function AdminCustomerList() {
         bv = b.mobileNumber || '';
         break;
       case 'role':
-        av = a.isAffiliate ? 1 : 0;
-        bv = b.isAffiliate ? 1 : 0;
+        av = roleWeight(a);
+        bv = roleWeight(b);
         break;
       case 'yellow':
         av = a.flags?.filter((f:any)=> f.color==='YELLOW' && f.escalatedTo.length===0).length || 0;
@@ -128,69 +145,124 @@ export default function AdminCustomerList() {
 
   return (
     <Box p={4} maxW="100%">
-      <Flex justifyContent={"space-between"} mb={4}>
-        <VStack>
-          <Heading size="md">Kundenübersicht</Heading>
-          <Input
-            placeholder="Suche nach Name, Nummer oder Rolle"
-            bg="white"
-            shadow="sm"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            width="100%"
-            maxW="600px"
-          />
-          <Flex gap={4} wrap="wrap">
-            <Text
-              color="yellow.600"
-              cursor="pointer"
-              fontWeight={filterStatus === "atRisk" ? "bold" : "normal"}
-              onClick={() =>
-                setFilterStatus(filterStatus === "atRisk" ? "all" : "atRisk")
-              }
-            >
-              Garantie gefährdet: {atRisk}
-            </Text>
-            <Text
-              color="red.600"
-              cursor="pointer"
-              fontWeight={filterStatus === "lost" ? "bold" : "normal"}
-              onClick={() =>
-                setFilterStatus(filterStatus === "lost" ? "all" : "lost")
-              }
-            >
-              Garantie verloren: {garantyLost}
-            </Text>
-            <Flex justifyContent={"end"}>
-              <Button
-                onClick={() => {
-                  navigate(`/createUser`);
-                }}
-              >
-                Kunde anlegen
-              </Button>
-            </Flex>
-          </Flex>
-        </VStack>
+      {/* Kopfzeile: Titel links, Button rechts */}
+      <Flex justifyContent="space-between" align="center" mb={4}>
+        <Heading size="md">Kundenübersicht</Heading>
+        <Button onClick={()=> navigate('/createUser')}>Kunde anlegen</Button>
       </Flex>
 
-      <Box overflowX="auto" borderRadius="lg" shadow="sm">
-        <Table.Root size="sm" stickyHeader interactive>
+      {/* Suchleiste + Filter zentral */}
+      <VStack align="center" w="100%">
+        {/* zentrierte Suche */}
+        <Input
+          placeholder="Suche nach Name, Nummer oder Rolle"
+          bg="var(--color-surface)"
+          borderColor="var(--color-border)"
+          color="var(--color-text)"
+          shadow="sm"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          width="100%"
+          maxW="600px"
+          mx="auto"
+        />
+        {/* Neue, aufgeräumte Filterleiste (vertikal gestapelt) */}
+        <VStack align="center" w="100%" maxW="800px" mx="auto" mb={3} >
+          {/* Rollen (native Checkboxen) */}
+          <Flex align="center" justify="center" gap={3} >
+            <Text fontSize="sm" color="gray.400">Rolle:</Text>
+            <label style={{ display:'inline-flex', alignItems:'center', gap:6, cursor:'pointer' }}>
+              <input
+                type="checkbox"
+                checked={showCustomers}
+                onChange={(e)=> setShowCustomers(e.currentTarget.checked)}
+              />
+              <span>Kunde</span>
+            </label>
+            <label style={{ display:'inline-flex', alignItems:'center', gap:6, cursor:'pointer' }}>
+              <input
+                type="checkbox"
+                checked={showAffiliates}
+                onChange={(e)=> setShowAffiliates(e.currentTarget.checked)}
+              />
+              <span>Affiliate</span>
+            </label>
+          </Flex>
+          {/* Status */}
+          <Flex align="center" justify="center" gap={2}>
+            <Text fontSize="sm" color="gray.400">Status:</Text>
+            <Button
+              size="sm"
+              variant={filterStatus==='all' ? 'solid':'outline'}
+              colorScheme="gray"
+              onClick={()=> setFilterStatus('all')}
+            >
+              Alle
+            </Button>
+            <Button
+              size="sm"
+              variant={filterStatus==='atRisk' ? 'solid':'outline'}
+              colorScheme="orange"
+              onClick={()=> setFilterStatus('atRisk')}
+            >
+              Gefährdet ({atRisk})
+            </Button>
+            <Button
+              size="sm"
+              variant={filterStatus==='lost' ? 'solid':'outline'}
+              colorScheme="red"
+              onClick={()=> setFilterStatus('lost')}
+            >
+              Verloren ({garantyLost})
+            </Button>
+          </Flex>
+        </VStack>
+      </VStack>
+
+      {/* Scoped dark styles for the table (avoid sx on Table) */}
+      <style>{`
+        .customerTableWrap table { background: transparent; border-collapse: collapse; border-spacing: 0; }
+        .customerTableWrap thead { background: transparent; }
+        .customerTableWrap thead tr th, .customerTableWrap thead tr td { background: rgba(255,255,255,0.04); color: var(--color-text); border-color: var(--color-border); }
+        .customerTableWrap thead tr th { position: sticky; top: 0; z-index: 1; }
+        .customerTableWrap tbody { background: transparent; }
+        .customerTableWrap tbody tr { background: transparent; }
+        .customerTableWrap tbody tr:hover { background: rgba(255,255,255,0.06); }
+        .customerTableWrap tbody td, .customerTableWrap tbody th { background: transparent; border-color: var(--color-border); }
+      `}</style>
+
+      <Box
+        overflowX="auto"
+        borderRadius="lg"
+        shadow="sm"
+        bg="var(--color-surface)"
+        borderWidth="1px"
+        borderColor="var(--color-border)"
+        className="customerTableWrap"
+      >
+        <Table.Root
+          size="sm"
+          stickyHeader
+          interactive
+          bg="transparent"
+          color="var(--color-text)"
+          style={{ borderCollapse: 'collapse', borderSpacing: 0 }}
+        >
           <Table.Header>
-            <Table.Row bg="gray.100">
-              <Table.ColumnHeader onClick={()=>toggleSort('name')} _hover={{cursor:'pointer', bg:'gray.50'}}>
+            <Table.Row bg="rgba(255,255,255,0.04)">
+              <Table.ColumnHeader onClick={()=>toggleSort('name')} _hover={{cursor:'pointer', bg:'rgba(255,255,255,0.06)'}}>
                 Name {sortKey==='name' && (sortDir==='asc' ? '▲':'▼')}
               </Table.ColumnHeader>
-              <Table.ColumnHeader onClick={()=>toggleSort('phone')} _hover={{cursor:'pointer', bg:'gray.50'}}>
+              <Table.ColumnHeader onClick={()=>toggleSort('phone')} _hover={{cursor:'pointer', bg:'rgba(255,255,255,0.06)'}}>
                 Telefon {sortKey==='phone' && (sortDir==='asc' ? '▲':'▼')}
               </Table.ColumnHeader>
-              <Table.ColumnHeader onClick={()=>toggleSort('role')} _hover={{cursor:'pointer', bg:'gray.50'}}>
+              <Table.ColumnHeader onClick={()=>toggleSort('role')} _hover={{cursor:'pointer', bg:'rgba(255,255,255,0.06)'}}>
                 Rolle {sortKey==='role' && (sortDir==='asc' ? '▲':'▼')}
               </Table.ColumnHeader>
-              <Table.ColumnHeader textAlign="end" onClick={()=>toggleSort('yellow')} _hover={{cursor:'pointer', bg:'gray.50'}}>
+              <Table.ColumnHeader textAlign="end" onClick={()=>toggleSort('yellow')} _hover={{cursor:'pointer', bg:'rgba(255,255,255,0.06)'}}>
                 Gelb {sortKey==='yellow' && (sortDir==='asc' ? '▲':'▼')}
               </Table.ColumnHeader>
-              <Table.ColumnHeader textAlign="end" onClick={()=>toggleSort('red')} _hover={{cursor:'pointer', bg:'gray.50'}}>
+              <Table.ColumnHeader textAlign="end" onClick={()=>toggleSort('red')} _hover={{cursor:'pointer', bg:'rgba(255,255,255,0.06)'}}>
                 Rot {sortKey==='red' && (sortDir==='asc' ? '▲':'▼')}
               </Table.ColumnHeader>
             </Table.Row>
@@ -200,14 +272,21 @@ export default function AdminCustomerList() {
               <Table.Row
                 key={customer.id}
                 onClick={() => handleClick(customer.id)}
-                _hover={{ bg: "gray.50", cursor: "pointer" }}
+                _hover={{ bg: "rgba(255,255,255,0.06)", cursor: "pointer" }}
+                bg="transparent"
               >
                 <Table.Cell>
                   {customer.name} {customer.last_name}
                 </Table.Cell>
                 <Table.Cell>{customer.mobileNumber}</Table.Cell>
                 <Table.Cell>
-                  {customer.isAffiliate ? "Affiliate" : "Kunde"}
+                  {((customer.isAffiliate) && (customer.isCustomer ?? (customer.role === 'CUSTOMER')))
+                    ? "Affiliate & Kunde"
+                    : customer.isAffiliate
+                      ? "Affiliate"
+                      : (customer.isCustomer ?? (customer.role === 'CUSTOMER'))
+                        ? "Kunde"
+                        : "—"}
                 </Table.Cell>
                 <Table.Cell textAlign="end" color="yellow.600">
                   {customer.flags?.filter(

@@ -12,8 +12,13 @@ import {
   getSurveyCompletionRateForCustomersByCoach,
   getCurrentSurvey,
   getSurveyCompletionRateForCoaches,
+  broadcastCustomSurvey,
+  getSurveySchedules,
+  createSurveySchedule,
+  updateSurveySchedule,
+  deleteSurveySchedule,
+  rescanSurveySchedules,
 } from "../controllers/surveyController";
-import { broadcastCustomSurvey } from "../controllers/surveyController";
 import { authenticateToken } from "../middleware/authMiddleware";
 
 const router = Router();
@@ -34,10 +39,13 @@ router.get("/getSurveyCompletionRateForCoaches", authenticateToken, getSurveyCom
 router.get("/getSurveyCompletionRateForCustomersByCoach/:coachId", authenticateToken, getSurveyCompletionRateForCustomersByCoach)
 
 router.delete("/deleteSurvey/:surveyId", authenticateToken, deleteSurvey);
-router.post(
-  "/broadcastCustomSurvey",
-  authenticateToken,
-  broadcastCustomSurvey
-);
+router.post("/broadcastCustomSurvey", authenticateToken, broadcastCustomSurvey);
+
+// 🆕 Schedule routes
+router.get("/schedules", authenticateToken, getSurveySchedules);
+router.post("/schedules", authenticateToken, createSurveySchedule);
+router.patch("/schedules/:id", authenticateToken, updateSurveySchedule);
+router.delete("/schedules/:id", authenticateToken, deleteSurveySchedule);
+router.post("/schedules/rescan", authenticateToken, rescanSurveySchedules);
 
 export default router;

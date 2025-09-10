@@ -6,7 +6,6 @@ import {
   FieldLabel,
   Flex,
   Grid,
-  GridItem,
   Heading,
   Icon,
   IconButton,
@@ -16,7 +15,7 @@ import {
   Text,
   Textarea,
 } from "@chakra-ui/react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { BsX } from "react-icons/bs";
 import { CgCheck } from "react-icons/cg";
 import { Form } from "react-router";
@@ -32,6 +31,7 @@ export default function Requirement() {
   const [loading, setLoading] = useState(true);
 
   const [phaseName, setPhaseName] = useState("");
+  const [activeTab, setActiveTab] = useState<"criteria" | "phases">("criteria");
 
   // Phase erstellen
   const handlePhaseCreate = async () => {
@@ -61,16 +61,13 @@ export default function Requirement() {
 
   const fetchRequirements = async () => {
     try {
-      await fetch(
-        `http://localhost:3000/users/getUser/${coachId.id}`,
-        {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      )
+      await fetch(`http://localhost:3000/users/getUser/${coachId.id}`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      })
         .then((response) => response.json())
         .then((data) => {
           setRule(data.coachRules);
@@ -218,167 +215,235 @@ export default function Requirement() {
     if (data) fetchPhases();
   };
 
+  // Memoized active/inactive lists
+  const activeRequirements = useMemo(
+    () => (requirementList as any[]).filter((r: any) => r.isDeleted == false),
+    [requirementList]
+  );
+  const inactiveRequirements = useMemo(
+    () => (requirementList as any[]).filter((r: any) => r.isDeleted == true),
+    [requirementList]
+  );
+
   const RequirementCard = ({ requirement }: { requirement: any }) => (
-    <GridItem
-      colSpan={{ base: 2, md: 1 }}
+    <Box
+      role="group"
       p={4}
       w="100%"
-      height="100%"
-      borderRadius={1}
-      borderWidth={1}
+      bg="var(--color-surface)"
+      borderWidth="1px"
+      borderColor="var(--color-border)"
+      rounded="lg"
+      transition="all 0.2s ease"
+      _hover={{
+        transform: "translateY(-2px)",
+        borderColor: "rgba(255,255,255,0.2)",
+      }}
     >
-      <Flex justifyContent={"end"}>
-        <IconButton onClick={() => deleteRequirement(requirement.id)}>
-          <Icon>
-            <Icon>{requirement.isDeleted ? <CgCheck /> : <BsX />}</Icon>
-          </Icon>
+      <Flex align="start" justify="space-between" mb={2} gap={3}>
+        <Text fontWeight="semibold" >
+          {requirement.title}
+        </Text>
+        <IconButton
+          aria-label={requirement.isDeleted ? "Reaktivieren" : "Deaktivieren"}
+          size="sm"
+          variant="ghost"
+          onClick={() => deleteRequirement(requirement.id)}
+        >
+          {requirement.isDeleted ? <CgCheck /> : <BsX />}
         </IconButton>
       </Flex>
-      <Flex flexDir="column" alignItems="center">
-        <Text fontWeight="bold">{requirement.title}</Text>
-        <Text>{requirement.description}</Text>
+      <Text fontSize="sm" color="gray.400">
+        {requirement.description || "—"}
+      </Text>
+      <Flex mt={3} justify="space-between" align="center">
+        <Box
+          as="span"
+          fontSize="xs"
+          color={requirement.isDeleted ? "orange.300" : "green.300"}
+        >
+          {requirement.isDeleted ? "Inaktiv" : "Aktiv"}
+        </Box>
       </Flex>
-    </GridItem>
+    </Box>
   );
 
   return (
     <Box>
       <Flex flexDirection="column" m={5}>
-        <Box mt={8}>
-          <Heading size="md" mb={4}>
-            Neue Phase erstellen
-          </Heading>
-          <Input
-            placeholder="Phasenname"
-            value={phaseName}
-            onChange={(e) => setPhaseName(e.target.value)}
-          />
-          <Flex alignItems="end" flexDirection="column">
-            <Button mt={3} onClick={handlePhaseCreate} colorScheme="teal">
-              Phase anlegen
-            </Button>
-          </Flex>
-        </Box>
-        <Box mt={6}>
-          <Heading size="md" mb={3}>
-            Phasen Liste
-          </Heading>
+        {/* Toggle Buttons */}
+        <Flex gap={3} mb={4}>
+          <Button
+            variant={activeTab === "criteria" ? "solid" : "outline"}
+            onClick={() => setActiveTab("criteria")}
+          >
+            Kriterien
+          </Button>
+          <Button
+            variant={activeTab === "phases" ? "solid" : "outline"}
+            onClick={() => setActiveTab("phases")}
+          >
+            Phasen
+          </Button>
+        </Flex>
 
-          {loadingPhases ? (
-            <Spinner />
-          ) : (
-            <Stack>
-              {phases.length === 0 && <Text>Keine Phasen vorhanden.</Text>}
-              {phases.map((phase: any) => (
-                <Box
-                  key={phase.id}
-                  p={3}
-                  borderWidth={1}
-                  borderRadius="md"
-                  bg="gray.50"
-                  position="relative"
+        {/* PHASEN TAB */}
+        {activeTab === "phases" && (
+          <>
+            <Box mt={8}>
+              <Heading size="md" mb={4}>
+                Neue Phase erstellen
+              </Heading>
+              <Input
+                placeholder="Phasenname"
+                value={phaseName}
+                onChange={(e) => setPhaseName(e.target.value)}
+              />
+              <Flex alignItems="end" flexDirection="column">
+                <Button mt={3} onClick={handlePhaseCreate} colorScheme="teal">
+                  Phase anlegen
+                </Button>
+              </Flex>
+            </Box>
+            <Box mt={6}>
+              <Heading size="md" mb={3}>
+                Phasen Liste
+              </Heading>
+
+              {loadingPhases ? (
+                <Spinner />
+              ) : (
+                <Stack>
+                  {phases.length === 0 && <Text>Keine Phasen vorhanden.</Text>}
+                  {phases.map((phase: any) => (
+                    <Box
+                      key={phase.id}
+                      p={3}
+                      borderWidth={1}
+                      borderRadius="md"
+                      bg="var(--color-surface)"
+                      borderColor="var(--color-border)"
+                      position="relative"
+                    >
+                      <Text fontWeight="bold">{phase.name}</Text>
+                      {phase.description && (
+                        <Text fontSize="sm">{phase.description}</Text>
+                      )}
+                      <Flex justifyContent={"end"}>
+                        <IconButton onClick={() => deletePhase(phase.id)}>
+                          <Icon>
+                            <Icon>
+                              <BsX />
+                            </Icon>
+                          </Icon>
+                        </IconButton>
+                      </Flex>
+                    </Box>
+                  ))}
+                </Stack>
+              )}
+            </Box>
+            <hr
+              style={{
+                border: "none",
+                borderTop: "1px solid #ccc",
+                margin: "20px 0",
+              }}
+            />
+            <Form onSubmit={handleRuleSubmit}>
+              <Flex mt={2} flexDirection="column">
+                <Heading>Regeln</Heading>
+                <Field.Root mb={3} mt={2}>
+                  <Textarea
+                    minWidth="100%"
+                    minHeight="20vh"
+                    value={rule}
+                    onChange={(e) => setRule(e.target.value)}
+                  />
+                </Field.Root>
+                <Flex alignItems="end" flexDirection="column">
+                  <Button type="submit" onClick={fetchRequirements}>
+                    Speichern
+                  </Button>
+                </Flex>
+              </Flex>
+            </Form>
+          </>
+        )}
+
+        {/* KRITERIEN TAB */}
+        {activeTab === "criteria" && (
+          <>
+            <Form onSubmit={handleSubmit}>
+              <Flex flexDirection="column" mt={5}>
+                <Heading>Kriterien</Heading>
+                <Field.Root mb={3}>
+                  <FieldLabel>Titel</FieldLabel>
+                  <Textarea
+                    maxWidth={{ lg: "50%" }}
+                    value={title}
+                    onChange={(e) => setrequirementTitle(e.target.value)}
+                  />
+                </Field.Root>
+                <Field.Root mb={3}>
+                  <FieldLabel>Ausführliche Beschreibung </FieldLabel>
+                  <Textarea
+                    minWidth="100%"
+                    minHeight="20vh"
+                    value={description}
+                    onChange={(e) => setRequirementDescription(e.target.value)}
+                  />
+                </Field.Root>
+                <Flex alignItems="end" flexDirection="column">
+                  <Button type="submit" onClick={fetchRequirements}>
+                    Anlegen
+                  </Button>
+                </Flex>
+              </Flex>
+            </Form>
+            <Flex></Flex>
+            {loading ? (
+              <Spinner />
+            ) : (
+              <Flex direction={"column"}>
+                <Grid
+                  templateColumns={{
+                    base: "1fr",
+                    md: "repeat(2, 1fr)",
+                    lg: "repeat(3, 1fr)",
+                  }}
+                  gap={4}
+                  mt={5}
                 >
-                  <Text fontWeight="bold">{phase.name}</Text>
-                  {phase.description && (
-                    <Text fontSize="sm">{phase.description}</Text>
-                  )}
-                  <Flex justifyContent={"end"}>
-                    <IconButton onClick={() => deletePhase(phase.id)}>
-                      <Icon>
-                        <Icon>
-                          <BsX />
-                        </Icon>
-                      </Icon>
-                    </IconButton>
-                  </Flex>
-                </Box>
-              ))}
-            </Stack>
-          )}
-        </Box>
-        <hr
-          style={{
-            border: "none",
-            borderTop: "1px solid #ccc",
-            margin: "20px 0",
-          }}
-        />
-        <Form onSubmit={handleRuleSubmit}>
-          <Flex mt={2} flexDirection="column">
-            <Heading>Regeln</Heading>
-            <Field.Root mb={3} mt={2}>
-              <Textarea
-                minWidth="100%"
-                minHeight="20vh"
-                value={rule}
-                onChange={(e) => setRule(e.target.value)}
-              />
-            </Field.Root>
-            <Flex alignItems="end" flexDirection="column">
-              <Button type="submit" onClick={fetchRequirements}>
-                Speichern
-              </Button>
-            </Flex>
-          </Flex>
-        </Form>
-        <hr
-          style={{
-            border: "none",
-            borderTop: "1px solid #ccc",
-            margin: "20px 0",
-          }}
-        />
-        <Form onSubmit={handleSubmit}>
-          <Flex flexDirection="column" mt={5}>
-            <Heading>Kriterien</Heading>
-            <Field.Root mb={3}>
-              <FieldLabel>Titel</FieldLabel>
-              <Textarea
-                maxWidth={{ lg: "50%" }}
-                value={title}
-                onChange={(e) => setrequirementTitle(e.target.value)}
-              />
-            </Field.Root>
-            <Field.Root mb={3}>
-              <FieldLabel>Ausführliche Beschreibung </FieldLabel>
-              <Textarea
-                minWidth="100%"
-                minHeight="20vh"
-                value={description}
-                onChange={(e) => setRequirementDescription(e.target.value)}
-              />
-            </Field.Root>
-            <Flex alignItems="end" flexDirection="column">
-              <Button type="submit" onClick={fetchRequirements}>
-                Anlegen
-              </Button>
-            </Flex>
-          </Flex>
-        </Form>
-        <Flex></Flex>
-        {loading ? (
-          <Spinner />
-        ) : (
-          <Flex direction={"column"}>
-            <Grid templateColumns="repeat(2, 1fr)" mt={5}>
-              {requirementList
-                .filter((requirement: any) => requirement.isDeleted == false)
-                .map((requirement, idx) => (
-                  <RequirementCard requirement={requirement} key={idx} />
-                ))}
-            </Grid>
-            <Text mt={5} fontWeight={"medium"}>
-              {" "}
-              Inactive Kriterien:
-            </Text>
-            <Grid templateColumns="repeat(2, 1fr)" mt={5}>
-              {requirementList
-                .filter((requirement: any) => requirement.isDeleted == true)
-                .map((requirement, idx) => (
-                  <RequirementCard requirement={requirement} key={idx} />
-                ))}
-            </Grid>
-          </Flex>
+                  {activeRequirements.map((requirement: any, idx: number) => (
+                    <RequirementCard
+                      requirement={requirement}
+                      key={requirement.id || idx}
+                    />
+                  ))}
+                </Grid>
+                <Text mt={5} fontWeight={"medium"}>
+                  Inaktive Kriterien ({inactiveRequirements.length}):
+                </Text>
+                <Grid
+                  templateColumns={{
+                    base: "1fr",
+                    md: "repeat(2, 1fr)",
+                    lg: "repeat(3, 1fr)",
+                  }}
+                  gap={4}
+                  mt={5}
+                >
+                  {inactiveRequirements.map((requirement: any, idx: number) => (
+                    <RequirementCard
+                      requirement={requirement}
+                      key={requirement.id || idx}
+                    />
+                  ))}
+                </Grid>
+              </Flex>
+            )}
+          </>
         )}
       </Flex>
     </Box>

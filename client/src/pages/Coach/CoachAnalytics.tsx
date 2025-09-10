@@ -9,7 +9,7 @@ interface CustomerGrowthPoint { date:string; newCustomers:number; cumulative:num
 interface RequirementFailure { requirementId:string; title:string; failures:number; }
 
 const dayOptions = [7,14,30,60,90];
-const selectStyle: React.CSSProperties = { padding: '4px 8px', borderRadius: '6px', border: '1px solid #CBD5E0', background: 'white', fontSize: '0.7rem' };
+const selectStyle: React.CSSProperties = { padding: '4px 8px', borderRadius: '6px', border: '1px solid var(--color-border)', background: 'var(--color-surface)', color: 'var(--color-text)', fontSize: '0.7rem' };
 const SimpleSelect = ({ value, onChange, options }: { value:number; onChange:(v:number)=>void; options:number[] }) => (
   <select value={value} onChange={e=> onChange(parseInt(e.target.value))} style={selectStyle}>
     {options.map(o=> <option key={o} value={o}>{o} Tage</option>)}
@@ -115,10 +115,10 @@ export default function CoachAnalytics(){
   const topFailure = failures[0];
 
   const kpiBox = (label:string, value:string|number, sub?:string, color?:string) => (
-    <Box key={label} p={4} rounded='lg' borderWidth='1px' bg='white' minW='160px'>
-      <Text fontSize='xs' color='gray.500' textTransform='uppercase' fontWeight='semibold'>{label}</Text>
-      <Text fontSize='xl' fontWeight='bold' color={color||'gray.800'}>{value}</Text>
-      {sub && <Text fontSize='xs' color='gray.500'>{sub}</Text>}
+    <Box key={label} p={4} rounded='lg' borderWidth='1px' borderColor='var(--color-border)' bg='var(--color-surface)' minW='160px'>
+      <Text fontSize='xs' color='var(--color-muted)' textTransform='uppercase' fontWeight='semibold'>{label}</Text>
+      <Text fontSize='xl' fontWeight='bold' color={color||'var(--color-text)'}>{value}</Text>
+      {sub && <Text fontSize='xs' color='var(--color-muted)'>{sub}</Text>}
     </Box>
   );
 
@@ -132,7 +132,7 @@ export default function CoachAnalytics(){
         {kpiBox('Top Requirement Fail', topFailure? topFailure.failures : '-', topFailure?.title?.slice(0,28),'red')} 
       </Flex>
 
-      <Flex p={3} borderWidth='1px' bg='white' rounded='lg' align='center' gap={6} wrap='wrap'>
+      <Flex p={3} borderWidth='1px' borderColor='var(--color-border)' bg='var(--color-surface)' rounded='lg' align='center' gap={6} wrap='wrap'>
         <Flex align='center' gap={2}>
           <Text fontSize='xs' fontWeight='semibold' color='gray.600'>Leads</Text>
           <SimpleSelect value={days} onChange={setDays} options={dayOptions} />
@@ -151,7 +151,7 @@ export default function CoachAnalytics(){
       </Flex>
 
       <Box display='grid' gap={6} gridTemplateColumns='repeat(auto-fill,minmax(340px,1fr))'>
-        <Box p={5} borderWidth='1px' rounded='xl' bg='white' shadow='sm'>
+        <Box p={5} borderWidth='1px' borderColor='var(--color-border)' rounded='xl' bg='var(--color-surface)' shadow='sm'>
           <Text fontSize='sm' fontWeight='semibold' mb={2}>Lead Wachstum (neu)</Text>
           <Box height={220}>
             {loadingGrowth ? <Flex justify='center' align='center' h='100%'><Spinner size='sm' /></Flex> : (
@@ -160,14 +160,14 @@ export default function CoachAnalytics(){
                   <CartesianGrid strokeDasharray='3 3' />
                   <XAxis dataKey='date' hide={growth.length>25} />
                   <YAxis />
-                  <ReTooltip />
+                  <ReTooltip contentStyle={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }} />
                   <Bar dataKey='newLeads' fill='#0d9488' radius={[4,4,0,0]} />
                 </BarChart>
               </ResponsiveContainer>
             )}
           </Box>
         </Box>
-  <Box p={5} borderWidth='1px' rounded='xl' bg='white' shadow='sm'>
+  <Box p={5} borderWidth='1px' borderColor='var(--color-border)' rounded='xl' bg='var(--color-surface)' shadow='sm'>
           <Text fontSize='sm' fontWeight='semibold' mb={2}>Lead Wachstum (kumulativ)</Text>
           <Box height={220}>
             {loadingGrowth ? <Flex justify='center' align='center' h='100%'><Spinner size='sm' /></Flex> : (
@@ -176,14 +176,14 @@ export default function CoachAnalytics(){
                   <CartesianGrid strokeDasharray='3 3' />
                   <XAxis dataKey='date' hide={growth.length>25} />
                   <YAxis />
-                  <ReTooltip />
+                  <ReTooltip contentStyle={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }} />
                   <Line type='monotone' dataKey='cumulative' stroke='#2563eb' strokeWidth={2} dot={false} />
                 </LineChart>
               </ResponsiveContainer>
             )}
           </Box>
         </Box>
-        <Box p={5} borderWidth='1px' rounded='xl' bg='white' shadow='sm'>
+        <Box p={5} borderWidth='1px' borderColor='var(--color-border)' rounded='xl' bg='var(--color-surface)' shadow='sm'>
           <Text fontSize='sm' fontWeight='semibold' mb={2}>Kunden Wachstum (neu)</Text>
           <Box height={220}>
             {loadingCustGrowth ? <Flex justify='center' align='center' h='100%'><Spinner size='sm' /></Flex> : customerGrowth.length===0 ? <Flex justify='center' align='center' h='100%'><Text fontSize='xs' color='gray.500'>Keine Kunden gefunden</Text></Flex> : (
@@ -192,14 +192,14 @@ export default function CoachAnalytics(){
                   <CartesianGrid strokeDasharray='3 3' />
                   <XAxis dataKey='date' hide={customerGrowth.length>25} />
                   <YAxis />
-                  <ReTooltip />
+                  <ReTooltip contentStyle={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }} />
                   <Bar dataKey='newCustomers' fill='#10b981' radius={[4,4,0,0]} />
                 </BarChart>
               </ResponsiveContainer>
             )}
           </Box>
         </Box>
-        <Box p={5} borderWidth='1px' rounded='xl' bg='white' shadow='sm'>
+        <Box p={5} borderWidth='1px' borderColor='var(--color-border)' rounded='xl' bg='var(--color-surface)' shadow='sm'>
           <Text fontSize='sm' fontWeight='semibold' mb={2}>Kunden Wachstum (kumulativ)</Text>
           <Box height={220}>
             {loadingCustGrowth ? <Flex justify='center' align='center' h='100%'><Spinner size='sm' /></Flex> : customerGrowth.length===0 ? <Flex justify='center' align='center' h='100%'><Text fontSize='xs' color='gray.500'>Keine Kunden Daten</Text></Flex> : (
@@ -208,14 +208,14 @@ export default function CoachAnalytics(){
                   <CartesianGrid strokeDasharray='3 3' />
                   <XAxis dataKey='date' hide={customerGrowth.length>25} />
                   <YAxis />
-                  <ReTooltip />
+                  <ReTooltip contentStyle={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }} />
                   <Line type='monotone' dataKey='cumulative' stroke='#059669' strokeWidth={2} dot={false} />
                 </LineChart>
               </ResponsiveContainer>
             )}
           </Box>
         </Box>
-        <Box p={5} borderWidth='1px' rounded='xl' bg='white' shadow='sm'>
+        <Box p={5} borderWidth='1px' borderColor='var(--color-border)' rounded='xl' bg='var(--color-surface)' shadow='sm'>
           <Text fontSize='sm' fontWeight='semibold' mb={2}>Top Requirement Failures</Text>
           <Box height={260}>
             {loadingFailures ? <Flex justify='center' align='center' h='100%'><Spinner size='sm' /></Flex> : (
@@ -224,7 +224,7 @@ export default function CoachAnalytics(){
                   <CartesianGrid strokeDasharray='3 3' />
                   <XAxis type='number' />
                   <YAxis type='category' dataKey='title' width={200} />
-                  <ReTooltip />
+                  <ReTooltip contentStyle={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }} />
                   <Bar dataKey='failures' fill='#dc2626' radius={[4,4,0,0]} />
                 </BarChart>
               </ResponsiveContainer>

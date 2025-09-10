@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { PrismaClient } from "@prisma/client";
 import { createTemporaryQuestions } from "./questionController";
+import { startDynamicSurveyCronJobs } from "../cronJobs/surveyScheduler";
 
 const prisma = new PrismaClient();
 
@@ -9,6 +10,14 @@ export const createSurvey = async (req: Request, res: Response) => {
   const { userId, comment, rating, questions } = req.body;
 
   try {
+    // Only allow for active customers
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user || user.role !== "CUSTOMER" || !user.isCustomer) {
+      return res
+        .status(400)
+        .json({ error: "Nur aktive Kunden (isCustomer=true) können Surveys erhalten" });
+    }
+
     const survey = await prisma.survey.create({
       data: {
         userId,
@@ -130,6 +139,12 @@ export const createSurveyForUser = async (req: Request, res: Response) => {
   // 1. Fragen des Coaches holen
   const { userId } = req.params;
 
+  // ensure user is active customer
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user || user.role !== "CUSTOMER" || !user.isCustomer) {
+    throw new Error("Nur aktive Kunden (isCustomer=true) können Surveys erhalten");
+  }
+
   const coach = await prisma.coachCustomer.findFirst({
     where: {
       customerId: userId,
@@ -233,6 +248,7 @@ export const getSurveyByAdmin = async (req: Request, res: Response) => {
             question: {
               select: {
                 id: true,
+                isRating: true,
                 text: true,
               },
             },
@@ -459,8 +475,16 @@ export const broadcastCustomSurvey = async (req: Request, res: Response) => {
       questions.map((q: any) => ({ text: q.text, isRating: !!q.isRating }))
     );
 
-    // 2. Ziel-User laden
-    const users = await prisma.user.findMany({ where: { role: targetRole } });
+    // 2. Ziel-User laden (bei CUSTOMER nur aktive Kunden)
+    let where: any;
+    if (targetRole === "CUSTOMER") {
+      // Nur tatsächliche Kunden (isCustomer=true), Rolle egal
+      where = { isCustomer: true };
+    } else {
+      // Für Coaches weiterhin per Rolle filtern
+      where = { role: targetRole };
+    }
+    const users = await prisma.user.findMany({ where });
     if (!users.length) {
       return res.status(200).json({ message: "Keine Ziel-User gefunden", count: 0 });
     }
@@ -492,5 +516,69 @@ export const broadcastCustomSurvey = async (req: Request, res: Response) => {
   } catch (error) {
     console.error("Fehler beim Broadcast Survey:", error);
     res.status(500).json({ error: "Fehler beim Broadcast" });
+  }
+};
+
+// 🆕 ----- Survey Schedule Management -----
+export const getSurveySchedules = async (_req: Request, res: Response) => {
+  try {
+    const schedules = await (prisma as any).surveySchedule.findMany({ orderBy: { createdAt: "desc" } });
+    res.json(schedules);
+  } catch (err) {
+    console.error("getSurveySchedules error", err);
+    res.status(500).json({ error: "Fehler beim Laden der Schedules" });
+  }
+};
+
+export const createSurveySchedule = async (req: Request, res: Response) => {
+  try {
+    const { type, cronExpression, timezone, active, comment } = req.body;
+    if (!type || !cronExpression) return res.status(400).json({ error: "type und cronExpression erforderlich" });
+    const schedule = await (prisma as any).surveySchedule.create({
+      data: { type, cronExpression, timezone: timezone || null, active: active ?? true, comment: comment || null },
+    });
+    await startDynamicSurveyCronJobs();
+    res.status(201).json(schedule);
+  } catch (err) {
+    console.error("createSurveySchedule error", err);
+    res.status(500).json({ error: "Fehler beim Erstellen des Schedules" });
+  }
+};
+
+export const updateSurveySchedule = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { type, cronExpression, timezone, active, comment } = req.body;
+    const schedule = await (prisma as any).surveySchedule.update({
+      where: { id },
+      data: { type, cronExpression, timezone, active, comment },
+    });
+    await startDynamicSurveyCronJobs();
+    res.json(schedule);
+  } catch (err) {
+    console.error("updateSurveySchedule error", err);
+    res.status(500).json({ error: "Fehler beim Aktualisieren des Schedules" });
+  }
+};
+
+export const deleteSurveySchedule = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    await (prisma as any).surveySchedule.delete({ where: { id } });
+    await startDynamicSurveyCronJobs();
+    res.json({ ok: true });
+  } catch (err) {
+    console.error("deleteSurveySchedule error", err);
+    res.status(500).json({ error: "Fehler beim Löschen des Schedules" });
+  }
+};
+
+export const rescanSurveySchedules = async (_req: Request, res: Response) => {
+  try {
+    await startDynamicSurveyCronJobs();
+    res.json({ ok: true });
+  } catch (err) {
+    console.error("rescanSurveySchedules error", err);
+    res.status(500).json({ error: "Fehler beim Neustarten der Schedules" });
   }
 };

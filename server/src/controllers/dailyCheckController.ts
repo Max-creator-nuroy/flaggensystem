@@ -3,6 +3,9 @@ import { Request, Response } from "express";
 import { uploadToGCS } from "../middleware/uploadToGCS";
 import { analyzeVideoWithGemini } from "./VideoController";
 import { startOfDay, subDays } from "date-fns";
+import fs from "fs";
+import path from "path";
+import { Storage } from "@google-cloud/storage";
 const prisma = new PrismaClient();
 
 // POST /createDailyCheck/:userId
@@ -23,10 +26,35 @@ export const createDailyCheck = async (req: Request, res: Response) => {
 
     const videoFile: any = req.file;
 
+    // Dateiname zu "Name_Nachname_YYYY-MM-DD.ext" umbenennen
+    let finalFilename = videoFile?.filename as string;
+    let finalPath = videoFile?.path || path.join("server", "Videos", finalFilename);
+    try {
+      const dateStr = new Date().toISOString().slice(0, 10);
+      const base = `${(user.name || "User").replace(/[^a-zA-Z0-9-_]/g, "_")}_${(user.last_name || "").replace(/[^a-zA-Z0-9-_]/g, "_")}_${dateStr}`.replace(/_+/g, "_").replace(/^_+|_+$/g, "");
+      const ext = path.extname(videoFile?.originalname || videoFile?.filename || ".mp4") || ".mp4";
+      finalFilename = `${base}${ext}`;
+      const targetDir = path.join("server", "Videos");
+      if (!fs.existsSync(targetDir)) fs.mkdirSync(targetDir, { recursive: true });
+      const newPath = path.join(targetDir, finalFilename);
+      if (finalPath && fs.existsSync(finalPath)) {
+        fs.renameSync(finalPath, newPath);
+        finalPath = newPath;
+      } else {
+        // Wenn Multer keinen Pfad liefert, kopieren wir nicht, setzen aber URL entsprechend
+        finalPath = newPath;
+      }
+    } catch (e) {
+      // Fallback auf alten Namen
+      finalFilename = videoFile?.filename;
+      finalPath = videoFile?.path || path.join("server", "Videos", finalFilename);
+    }
+
     //zuerst das Video erstellen
     const video = await prisma.video.create({
       data: {
-        url: "server/Videos/" + videoFile?.filename,
+        url: "server/Videos/" + finalFilename,
+        title: `${user.name || "User"} ${user.last_name || ""} ${new Date().toISOString().slice(0,10)}`.trim(),
         userId: userId,
       },
     });
@@ -110,6 +138,117 @@ export const createDailyCheck = async (req: Request, res: Response) => {
   } catch (error) {
     console.error("Fehler beim Erstellen:", error);
     res.status(500).json({ message: "Fehler beim Erstellen des Dailychecks" });
+  }
+};
+
+// GET /dailyCheck/listWithViolations/:userId
+export const listDailyChecksWithViolations = async (req: Request, res: Response) => {
+  try {
+    const { userId } = req.params;
+    const auth: any = (req as any).user;
+    // Nur reine Affiliates ohne Kunde sperren
+    if (auth?.isAffiliate && !auth?.isCustomer) {
+      return res.status(403).json({ message: "Keine Berechtigung" });
+    }
+
+    const checks = await prisma.dailyCheck.findMany({
+      where: { userId },
+      orderBy: { date: "desc" },
+      include: { video: true, entries: { select: { fulfilled: true } } as any },
+    } as any);
+
+    const list = checks.map((c: any) => ({
+      id: c.id,
+      date: c.date,
+      violationsCount: c.entries.filter((e: any) => !e.fulfilled).length,
+      video: {
+        id: c.video?.id,
+        title: c.video?.title,
+        archivedAt: c.video?.archivedAt,
+        restoreStatus: c.video?.restoreStatus,
+      },
+    }));
+    res.json(list);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ message: "Fehler beim Laden der DailyChecks" });
+  }
+};
+
+// GET /dailyCheck/violations/:dailyCheckId
+export const getDailyCheckViolations = async (req: Request, res: Response) => {
+  try {
+    const { dailyCheckId } = req.params;
+    const dc = await prisma.dailyCheck.findUnique({
+      where: { id: dailyCheckId },
+      include: { entries: { include: { requirement: true } }, video: true },
+    });
+    if (!dc) return res.status(404).json({ message: "DailyCheck nicht gefunden" });
+    const violations = dc.entries.filter((e) => !e.fulfilled).map((e) => ({
+      id: e.id,
+      requirementId: e.requirementId,
+      title: e.requirement.title,
+      note: e.note,
+    }));
+    res.json({ date: dc.date, video: dc.video, violations });
+  } catch (e) {
+    res.status(500).json({ message: "Fehler beim Laden der Verstöße" });
+  }
+};
+
+// POST /video/request/:dailyCheckId  → fordert ggf. Restore an
+export const requestVideoDownload = async (req: Request, res: Response) => {
+  try {
+    const { dailyCheckId } = req.params;
+    const dc = await prisma.dailyCheck.findUnique({ where: { id: dailyCheckId }, include: { video: true } });
+    if (!dc || !dc.video) return res.status(404).json({ message: "Video nicht gefunden" });
+
+    // Wenn bereits lokal/Hot ⇒ sofort ok
+    if (!dc.video.archivedAt) {
+      return res.json({ status: "HOT", url: dc.video.url });
+    }
+
+    // Falls bereits vorbereitet
+    if ((dc.video as any).restoreUrl) {
+      return res.json({ status: "READY", url: (dc.video as any).restoreUrl });
+    }
+
+    // Dummy: Stelle Restore an (nur DB-Flags setzen)
+    await prisma.video.update({
+      where: { id: dc.video.id },
+      data: { restoreStatus: "REQUESTED", restoreRequestedAt: new Date() } as any,
+    });
+
+    return res.status(202).json({ status: "REQUESTED", message: "Video liegt im Cold Storage. Wiederherstellung angefragt – das kann etwas dauern." });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ message: "Fehler bei der Video-Anfrage" });
+  }
+};
+
+// GET /video/download/:dailyCheckId → liefert Datei oder meldet Status
+export const downloadDailyCheckVideo = async (req: Request, res: Response) => {
+  try {
+    const { dailyCheckId } = req.params;
+    const dc = await prisma.dailyCheck.findUnique({ where: { id: dailyCheckId }, include: { video: true } });
+    if (!dc || !dc.video) return res.status(404).json({ message: "Video nicht gefunden" });
+
+    // Hot/local verfügbar
+    if (!dc.video.archivedAt) {
+      const absolute = path.isAbsolute(dc.video.url) ? dc.video.url : path.resolve(process.cwd(), dc.video.url);
+      if (!fs.existsSync(absolute)) return res.status(404).json({ message: "Datei nicht vorhanden" });
+      return res.download(absolute);
+    }
+
+    // Falls bereits Restore-URL vorhanden (Dummy)
+    if ((dc.video as any).restoreUrl) {
+      return res.redirect((dc.video as any).restoreUrl);
+    }
+
+    return res.status(202).json({ status: "REQUESTED", message: "Video wird aus dem Cold Storage wiederhergestellt. Bitte später erneut versuchen." });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ message: "Fehler beim Download" });
   }
 };
 

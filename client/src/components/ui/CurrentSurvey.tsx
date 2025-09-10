@@ -81,7 +81,7 @@ export default function CurrentSurvey() {
   };
 
   const handleSubmit = async () => {
-    console.log(answers); 
+    console.log(answers);
     try {
       const res = await fetch(
         `http://localhost:3000/surveys/submitSurveyAnswers/${survey?.id}`,
@@ -124,7 +124,15 @@ export default function CurrentSurvey() {
       ) : !Array.isArray(survey.questions) || survey.questions.length === 0 ? (
         <Text color="gray.500">Keine aktuelle Umfrage verfügbar.</Text>
       ) : (
-        <Card.Root variant="outline" p={4} mb={6}>
+        <Card.Root
+          variant="outline"
+          p={4}
+          mb={6}
+          bg="var(--color-surface)"
+          borderWidth="1px"
+          borderColor="var(--color-border)"
+          borderRadius="md"
+        >
           <CardBody>
             <Stack>
               {survey?.questions?.map((q: any) => (

@@ -229,7 +229,7 @@ export default function ProfilPage() {
 
         {/* Passwort ändern Formular (nur anzeigen, wenn showPasswordForm true) */}
         {showPasswordForm && (
-          <Box mt={4} p={4} borderWidth={1} borderRadius="md" bg="gray.50">
+          <Box mt={4} p={4} borderWidth={1} borderRadius="md" bg="var(--color-surface)" borderColor='var(--color-border)'>
             <Stack>
               <Input
                 type="password"

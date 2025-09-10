@@ -89,12 +89,12 @@ export default function ResetPassword() {
         justify="center"
         flexDirection="column"
       >
-        <Stack boxShadow="md" bg="blue.300" p="20" rounded="sm" display="flex">
+        <Stack boxShadow="md" bg="var(--color-surface)" p="20" rounded="sm" display="flex">
           <Heading as="h1" display="flex" mb={4}>
             Ungültiger Link
           </Heading>
           
-          <Box bg="red.100" p={3} rounded="md" mb={4} border="1px solid" borderColor="red.300">
+          <Box bg="rgba(239,68,68,0.15)" p={3} rounded="md" mb={4} border="1px solid" borderColor="red.600">
             <Text color="red.700">{error}</Text>
           </Box>
 
@@ -123,7 +123,7 @@ export default function ResetPassword() {
       justify="center"
       flexDirection="column"
     >
-      <Stack boxShadow="md" bg="blue.300" p="20" rounded="sm" display="flex">
+      <Stack boxShadow="md" bg="var(--color-surface)" p="20" rounded="sm" display="flex">
         <Heading as="h1" display="flex" mb={4}>
           Neues Passwort festlegen
         </Heading>
@@ -166,13 +166,13 @@ export default function ResetPassword() {
           </Container>
 
           {message && (
-            <Box bg="green.100" p={3} rounded="md" mb={4} border="1px solid" borderColor="green.300">
+            <Box bg="rgba(34,197,94,0.15)" p={3} rounded="md" mb={4} border="1px solid" borderColor="green.600">
               <Text color="green.700">{message}</Text>
             </Box>
           )}
 
           {error && (
-            <Box bg="red.100" p={3} rounded="md" mb={4} border="1px solid" borderColor="red.300">
+            <Box bg="rgba(239,68,68,0.15)" p={3} rounded="md" mb={4} border="1px solid" borderColor="red.600">
               <Text color="red.700">{error}</Text>
             </Box>
           )}

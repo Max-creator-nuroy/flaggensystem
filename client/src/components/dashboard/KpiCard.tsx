@@ -9,9 +9,7 @@ interface KpiCardProps {
   onClick?: () => void;
 }
 
-export function KpiCard({ title, value, subtitle, gradient, icon, onClick }: KpiCardProps) {
-  const cardBg = 'white';
-  const titleColor = 'gray.600';
+export function KpiCard({ title, value, subtitle, icon, onClick }: KpiCardProps) {
 
   return (
   <Box
@@ -19,16 +17,16 @@ export function KpiCard({ title, value, subtitle, gradient, icon, onClick }: Kpi
       p={5}
       rounded='xl'
       overflow='hidden'
-      bg={cardBg}
-      boxShadow='sm'
+      borderWidth="1px"
+      borderColor="var(--color-border)"
       role='group'
       cursor={onClick ? 'pointer' : 'default'}
       onClick={onClick}
       transition='0.25s'
     >
-      <Box position='absolute' inset={0} opacity={0.18} bg={gradient} />
+      <Box position='absolute' inset={0} opacity={0.18} />
       <Flex justify='space-between' align='start' mb={2}>
-        <Text fontSize='sm' fontWeight='semibold' letterSpacing='wide' color={titleColor}>
+        <Text fontSize='sm' fontWeight='semibold' letterSpacing='wide'>
           {title.toUpperCase()}
         </Text>
         {icon && <Box fontSize='2xl' opacity={0.75}>{icon}</Box>}
