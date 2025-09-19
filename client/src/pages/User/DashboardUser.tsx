@@ -23,10 +23,9 @@ import {
   Textarea,
   Switch,
   Icon,
-  Box,
 } from "@chakra-ui/react";
 import { useEffect, useState } from "react";
-import { FiCheckCircle, FiFlag, FiShield, FiTrendingUp, FiUser, FiVideo, FiCalendar } from "react-icons/fi";
+import { FiFlag, FiShield, FiTrendingUp, FiUser, FiCalendar } from "react-icons/fi";
 import Moment from "moment";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { toaster } from "@/components/ui/toaster";
@@ -53,7 +52,6 @@ export default function Dashboard() {
   const [comment, setComment] = useState<string>("");
   const [isAffiliate, setIsAffiliate] = useState(!!userData?.isAffiliate);
   const [isCustomer, setIsCustomer] = useState(!!userData?.isCustomer);
-  const [videoReqLoading, setVideoReqLoading] = useState(false);
   const [absenceRequests, setAbsenceRequests] = useState<any[]>([]);
   const [absenceReqLoading, setAbsenceReqLoading] = useState(false);
   const [journalEntries, setJournalEntries] = useState<any[]>([]);
@@ -187,70 +185,6 @@ export default function Dashboard() {
     setFlags(data.flags || []);
   };
 
-  // --- DailyChecks list & details handlers ---
-  const openDailyChecksDialog = async () => {
-    setDcListOpen(true);
-    toaster.info({ title: "Lade Daily Checks…" });
-    await loadDailyCheckList();
-  };
-
-  const loadDailyCheckList = async () => {
-    try {
-      setDcListLoading(true);
-      const uid = userIdParam == null ? user.id : userIdParam;
-      const res = await fetch(
-        `http://localhost:3000/dailyCheck/listWithViolations/${uid}`,
-        {
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-      if (!res.ok) {
-        if (res.status === 403) {
-          toaster.error({ title: "Keine Berechtigung" });
-        } else {
-          toaster.error({ title: "Laden fehlgeschlagen" });
-        }
-        setDcListLoading(false);
-        return;
-      }
-      const list = await res.json();
-      setDcList(list || []);
-      setDcListLoading(false);
-      // Preselect first
-      if (list && list.length > 0) {
-        selectDailyCheck(list[0]);
-      } else {
-        setDcSelected(null);
-        setDcDetail(null);
-      }
-    } catch (e) {
-      console.error(e);
-      setDcListLoading(false);
-    }
-  };
-
-  const selectDailyCheck = async (item: any) => {
-    setDcSelected(item);
-    setDcDetail(null);
-    setDcDetailLoading(true);
-    try {
-      const res = await fetch(
-        `http://localhost:3000/dailyCheck/violations/${item.id}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-      const detail = await res.json();
-      setDcDetail(detail);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setDcDetailLoading(false);
-    }
-  };
 
 
   // NEW: Admin toggle enable/disable customer
