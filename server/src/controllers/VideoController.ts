@@ -93,17 +93,24 @@ export const deleteVideo = async (req: Request, res: Response) => {
 
 export const analyzeVideoWithGemini = (video: any, criteriaList: any) => {
   return new Promise((resolve, reject) => {
+    console.log("🔍 VideoController: video.path received:", video.path);
+    
     const fileName = "criteria_temp_" + Date.now() + ".json";
     fs.writeFileSync(fileName, JSON.stringify(criteriaList), "utf8");
 
-    const command = `python src/python/analyze_video.py "${video.path}" "${fileName}"`;
+    const command = `python3 src/python/analyze_video.py "${video.path}" "${fileName}"`;
+    console.log("🔍 VideoController: executing command:", command);
 
     exec(command, (err, stdout, stderr) => {
       fs.unlinkSync(fileName); // Datei auf jeden Fall löschen (auch bei Fehlern)
 
       if (err) {
         console.error("❌ Fehler beim Ausführen:", stderr);
-        reject(err); // ← Promise korrekt ablehnen
+        console.error("Fehler beim Erstellen:", err);
+        
+        // Reject the promise when Python analysis fails
+        // This will prevent the DailyCheck from being created
+        reject(new Error(`Video-Analyse fehlgeschlagen: ${err.message}`));
         return;
       }
 

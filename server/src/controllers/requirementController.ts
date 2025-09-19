@@ -9,7 +9,7 @@ export const getRequirementByCoach = async (req: Request, res: Response) => {
 
   try {
     const requirements = await prisma.requirement.findMany({
-      where: { coachId: coachId },
+      where: { coachId: coachId, isDeleted: false },
     });
 
     res.json({ requirement: requirements });

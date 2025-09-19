@@ -23,23 +23,23 @@ import {
   Textarea,
   Switch,
   Icon,
+  Box,
 } from "@chakra-ui/react";
 import { useEffect, useState } from "react";
 import { FiCheckCircle, FiFlag, FiShield, FiTrendingUp, FiUser, FiVideo, FiCalendar } from "react-icons/fi";
 import Moment from "moment";
-import { useSearchParams } from "react-router";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { toaster } from "@/components/ui/toaster";
 
 export default function Dashboard() {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
-  const [videoCheckLoading, setVideoCheckLoading] = useState(false);
   const token = localStorage.getItem("token");
   const user = getUserFromToken(token);
   const [userData, setUserData] = useState<any>(null);
   const [flags, setFlags] = useState<any[]>([]);
   const [dailyCheckList, setDailCheckList] = useState<any[]>([]);
   const [coach, setCoach] = useState<any>(null);
-  const [videoFile, setVideoFile] = useState<File | null>(null);
   const [searchParams] = useSearchParams();
   const userIdParam = searchParams.get("userId");
   const [selectedFlag, setSelectedFlag] = useState<any>(null);
@@ -53,13 +53,6 @@ export default function Dashboard() {
   const [comment, setComment] = useState<string>("");
   const [isAffiliate, setIsAffiliate] = useState(!!userData?.isAffiliate);
   const [isCustomer, setIsCustomer] = useState(!!userData?.isCustomer);
-  // --- New state for DailyCheck list & details dialog ---
-  const [dcListOpen, setDcListOpen] = useState(false);
-  const [dcListLoading, setDcListLoading] = useState(false);
-  const [dcList, setDcList] = useState<any[]>([]);
-  const [dcSelected, setDcSelected] = useState<any | null>(null);
-  const [dcDetailLoading, setDcDetailLoading] = useState(false);
-  const [dcDetail, setDcDetail] = useState<any | null>(null);
   const [videoReqLoading, setVideoReqLoading] = useState(false);
   const [absenceRequests, setAbsenceRequests] = useState<any[]>([]);
   const [absenceReqLoading, setAbsenceReqLoading] = useState(false);
@@ -67,6 +60,15 @@ export default function Dashboard() {
   const [journalLoading, setJournalLoading] = useState(false);
   const [newCallNotes, setNewCallNotes] = useState("");
   const [newPlanNotes, setNewPlanNotes] = useState("");
+
+  // Helper function to check if daily check is completed today
+  const isDailyCheckCompletedToday = () => {
+    const today = new Date().toDateString();
+    return dailyCheckList.some(check => {
+      const checkDate = new Date(check.date).toDateString();
+      return checkDate === today;
+    });
+  };
   const loadJournal = async () => {
     if (!userIdParam || (user?.role !== 'COACH' && user?.role !== 'ADMIN')) return;
     try {
@@ -170,42 +172,6 @@ export default function Dashboard() {
   loadJournal();
   }, [userIdParam, token]);
 
-  const handleSubmit = async () => {
-    if (!videoFile) {
-      return;
-    }
-
-    try {
-      const formData = new FormData();
-      formData.append("video", videoFile);
-      setVideoCheckLoading(true);
-
-      const res = await fetch(
-        `http://localhost:3000/dailyCheck/createDailyCheck/${user.id}`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-          body: formData,
-        }
-      );
-
-      if (!res.ok) {
-        setVideoCheckLoading(false);
-        throw new Error("Fehler beim Erstellen des DailyChecks");
-      }
-
-      const result = await res.json();
-      console.log("Antwort vom Server:", result);
-
-      setVideoCheckLoading(false);
-      // Optional: Daten nachladen
-      refreshDailyChecks();
-    } catch (err) {
-      console.error(err);
-    }
-  };
 
   const refreshDailyChecks = async () => {
     const uid = userIdParam == null ? user.id : userIdParam;
@@ -286,47 +252,6 @@ export default function Dashboard() {
     }
   };
 
-  const handleRequestVideo = async (dailyCheckId: string) => {
-    try {
-      setVideoReqLoading(true);
-      const res = await fetch(
-        `http://localhost:3000/dailyCheck/video/request/${dailyCheckId}`,
-        {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-      const data = await res.json().catch(() => ({}));
-      if (res.ok) {
-        if (data.status === "HOT") {
-          toaster.success({ title: "Video bereit (Hot)" });
-          // Direkt herunterladen
-          handleDownload(dailyCheckId);
-        } else if (data.status === "READY") {
-          toaster.success({ title: "Video wiederhergestellt" });
-          handleDownload(dailyCheckId);
-        } else {
-          toaster.info({ title: "Wiederherstellung angefragt" });
-        }
-        // Refresh list item state
-        await loadDailyCheckList();
-      } else if (res.status === 202) {
-        toaster.info({ title: "Wiederherstellung angefragt" });
-      } else {
-        toaster.error({ title: "Anfrage fehlgeschlagen" });
-      }
-    } catch (e) {
-      console.error(e);
-      toaster.error({ title: "Anfrage fehlgeschlagen" });
-    } finally {
-      setVideoReqLoading(false);
-    }
-  };
-
-  const handleDownload = (dailyCheckId: string) => {
-    // Browser-Download/Redirect auslösen
-    window.location.href = `http://localhost:3000/dailyCheck/video/download/${dailyCheckId}`;
-  };
 
   // NEW: Admin toggle enable/disable customer
   const toggleCustomerStatus = async () => {
@@ -561,25 +486,7 @@ export default function Dashboard() {
           )}
         </Flex>
         <Flex gap={3} wrap="wrap" mt={1}>
-          {user?.role !== 'ADMIN' && (
-            <>
-              <Button onClick={() => document.getElementById("video-upload")?.click()}>
-                <Icon as={FiVideo} mr={2} /> Video hochladen
-              </Button>
-              <input
-                id="video-upload"
-                type="file"
-                accept="video/*"
-                onChange={(e) => {
-                  const file = (e.target as HTMLInputElement).files?.[0] || null;
-                  setVideoFile(file as any);
-                }}
-                style={{ display: "none" }}
-              />
-            </>
-          )}
-
-          <Button variant="outline" onClick={openDailyChecksDialog}>
+          <Button variant="outline" onClick={() => navigate(userIdParam ? `/dailyChecks?userId=${userIdParam}` : '/dailyChecks')}>
             <Icon as={FiCalendar} mr={2} /> Daily Checks ansehen
           </Button>
 
@@ -655,56 +562,58 @@ export default function Dashboard() {
             </Dialog.Root>
           )}
 
-          <Dialog.Root>
-            <Dialog.Trigger asChild>
-              <Button variant="outline"><Icon as={FiFlag} mr={2} /> Flagge erstellen</Button>
-            </Dialog.Trigger>
-            <Portal>
-              <Dialog.Backdrop />
-              <Dialog.Positioner>
-                <Dialog.Content bg="var(--color-surface)" borderWidth="1px" borderColor="var(--color-border)">
-                  <Dialog.Header>
-                    <Dialog.Title>Neue Flagge erstellen</Dialog.Title>
-                    <Dialog.CloseTrigger asChild><CloseButton size="sm" /></Dialog.CloseTrigger>
-                  </Dialog.Header>
-                  <Dialog.Body>
-                    <Field.Root>
-                      <Field.Label>Farbe</Field.Label>
-                      <Select.Root collection={flagColorList} onValueChange={(e: any) => setFlagColor(e.value[0])}>
-                        <Select.HiddenSelect />
-                        <Select.Control bg="var(--color-surface)" borderWidth="1px" borderColor="var(--color-border)" rounded="md">
-                          <Select.Trigger>
-                            <Select.ValueText placeholder="Farbe wählen" />
-                          </Select.Trigger>
-                          <Select.IndicatorGroup>
-                            <Select.Indicator />
-                          </Select.IndicatorGroup>
-                        </Select.Control>
-                        <Select.Positioner>
-                          <Select.Content bg="var(--color-surface)" borderWidth="1px" borderColor="var(--color-border)">
-                            {flagColorList.items.map((color: any) => (
-                              <Select.Item item={color} key={color.value} _hover={{ bg: "rgba(255,255,255,0.06)" }} _highlighted={{ bg: "rgba(255,255,255,0.08)" }}>
-                                {color.label}
-                                <Select.ItemIndicator />
-                              </Select.Item>
-                            ))}
-                          </Select.Content>
-                        </Select.Positioner>
-                      </Select.Root>
-                    </Field.Root>
-                    <Field.Root>
-                      <Field.Label>Kommentar</Field.Label>
-                      <Textarea placeholder="Kommentar zur Flagge..." value={comment} onChange={(e) => setComment(e.target.value)} />
-                    </Field.Root>
-                  </Dialog.Body>
-                  <Dialog.Footer>
-                    <Dialog.ActionTrigger asChild><Button variant="outline">Abbrechen</Button></Dialog.ActionTrigger>
-                    <Dialog.ActionTrigger asChild><Button onClick={handleCreateFlag}>Speichern</Button></Dialog.ActionTrigger>
-                  </Dialog.Footer>
-                </Dialog.Content>
-              </Dialog.Positioner>
-            </Portal>
-          </Dialog.Root>
+          {(user?.role === 'COACH' || user?.role === 'ADMIN') && (
+            <Dialog.Root>
+              <Dialog.Trigger asChild>
+                <Button variant="outline"><Icon as={FiFlag} mr={2} /> Flagge erstellen</Button>
+              </Dialog.Trigger>
+              <Portal>
+                <Dialog.Backdrop />
+                <Dialog.Positioner>
+                  <Dialog.Content bg="var(--color-surface)" borderWidth="1px" borderColor="var(--color-border)">
+                    <Dialog.Header>
+                      <Dialog.Title>Neue Flagge erstellen</Dialog.Title>
+                      <Dialog.CloseTrigger asChild><CloseButton size="sm" /></Dialog.CloseTrigger>
+                    </Dialog.Header>
+                    <Dialog.Body>
+                      <Field.Root>
+                        <Field.Label>Farbe</Field.Label>
+                        <Select.Root collection={flagColorList} onValueChange={(e: any) => setFlagColor(e.value[0])}>
+                          <Select.HiddenSelect />
+                          <Select.Control bg="var(--color-surface)" borderWidth="1px" borderColor="var(--color-border)" rounded="md">
+                            <Select.Trigger>
+                              <Select.ValueText placeholder="Farbe wählen" />
+                            </Select.Trigger>
+                            <Select.IndicatorGroup>
+                              <Select.Indicator />
+                            </Select.IndicatorGroup>
+                          </Select.Control>
+                          <Select.Positioner>
+                            <Select.Content bg="var(--color-surface)" borderWidth="1px" borderColor="var(--color-border)">
+                              {flagColorList.items.map((color: any) => (
+                                <Select.Item item={color} key={color.value} _hover={{ bg: "rgba(255,255,255,0.06)" }} _highlighted={{ bg: "rgba(255,255,255,0.08)" }}>
+                                  {color.label}
+                                  <Select.ItemIndicator />
+                                </Select.Item>
+                              ))}
+                            </Select.Content>
+                          </Select.Positioner>
+                        </Select.Root>
+                      </Field.Root>
+                      <Field.Root>
+                        <Field.Label>Kommentar</Field.Label>
+                        <Textarea placeholder="Kommentar zur Flagge..." value={comment} onChange={(e) => setComment(e.target.value)} />
+                      </Field.Root>
+                    </Dialog.Body>
+                    <Dialog.Footer>
+                      <Dialog.ActionTrigger asChild><Button variant="outline">Abbrechen</Button></Dialog.ActionTrigger>
+                      <Dialog.ActionTrigger asChild><Button onClick={handleCreateFlag}>Speichern</Button></Dialog.ActionTrigger>
+                    </Dialog.Footer>
+                  </Dialog.Content>
+                </Dialog.Positioner>
+              </Portal>
+            </Dialog.Root>
+          )}
 
           <Dialog.Root>
             <Dialog.Trigger asChild>
@@ -799,22 +708,51 @@ export default function Dashboard() {
               </CardBody>
             </Card.Root>
           )}
-          <Card.Root bg="var(--color-surface)" borderWidth="1px" borderColor="var(--color-border)">
-            <CardHeader><Heading size="md">Deine Aktivität (Daily Checks)</Heading></CardHeader>
+          <Card.Root 
+            bg="var(--color-surface)" 
+            borderWidth="1px" 
+            borderColor={isDailyCheckCompletedToday() ? "green.300" : "red.300"}
+            cursor="pointer"
+            onClick={() => navigate(userIdParam ? `/dailyChecks?userId=${userIdParam}` : '/dailyChecks')}
+            _hover={{ bg: "rgba(255,255,255,0.04)", transform: "translateY(-1px)" }}
+            transition="all 0.2s"
+          >
+            <CardHeader>
+              <Flex align="center" justify="space-between">
+                <Heading size="md">Daily Checks</Heading>
+                <Icon 
+                  as={FiCalendar} 
+                  color={isDailyCheckCompletedToday() ? "green.500" : "red.500"} 
+                  boxSize={6} 
+                />
+              </Flex>
+            </CardHeader>
             <CardBody>
-              {dailyCheckList.length === 0 ? (
-                <Text>Keine Daily Checks vorhanden.</Text>
-              ) : (
-                <VStack align="stretch" gap={3}>
-                  {dailyCheckList.slice(0, 10).map((dc) => (
-                    <Flex key={dc.id} justify="space-between" p={2} borderWidth="1px" borderColor="var(--color-border)" rounded="md">
-                      <Text>{new Date(dc.date).toLocaleDateString("de-DE")}</Text>
-                      <Text>{dc.entries.filter((e: any) => e.fulfilled).length} / {dc.entries.length}</Text>
-                    </Flex>
-                  ))}
-                  <Button variant="outline" onClick={openDailyChecksDialog}>Alle ansehen</Button>
-                </VStack>
-              )}
+              <VStack align="stretch" gap={3}>
+                <Text 
+                  color={isDailyCheckCompletedToday() ? "green.400" : "red.400"}
+                  fontWeight="medium"
+                >
+                  {isDailyCheckCompletedToday() 
+                    ? "✅ Daily Check heute bereits erledigt!" 
+                    : "⚠️ Daily Check heute noch offen"}
+                </Text>
+                {dailyCheckList.length > 0 && (
+                  <Flex justify="space-between" align="center" p={3} bg="rgba(255,255,255,0.06)" rounded="md">
+                    <Text fontSize="sm">Gesamt Daily Checks:</Text>
+                    <Text fontSize="sm" fontWeight="medium">{dailyCheckList.length} Videos</Text>
+                  </Flex>
+                )}
+                <Button 
+                  variant="outline" 
+                  colorScheme={isDailyCheckCompletedToday() ? "green" : "red"} 
+                  size="sm"
+                >
+                  {isDailyCheckCompletedToday() 
+                    ? "Daily Checks ansehen →" 
+                    : "Daily Check jetzt machen →"}
+                </Button>
+              </VStack>
             </CardBody>
           </Card.Root>
 
@@ -1031,108 +969,13 @@ export default function Dashboard() {
             </CardBody>
           </Card.Root>
 
-          {user?.role === 'CUSTOMER' && (
-            <Card.Root bg="var(--color-surface)" borderWidth="1px" borderColor="var(--color-border)">
-              <CardHeader><Heading size="md">Video Upload</Heading></CardHeader>
-              <CardBody>
-                <VStack align="stretch" gap={3}>
-                  <Button onClick={() => document.getElementById("video-upload-side")?.click()} variant="outline">
-                    <Icon as={FiVideo} mr={2} /> Video auswählen
-                  </Button>
-                  <input
-                    id="video-upload-side"
-                    type="file"
-                    accept="video/*"
-                    onChange={(e) => {
-                      const file = (e.target as HTMLInputElement).files?.[0] || null;
-                      setVideoFile(file as any);
-                    }}
-                    style={{ display: "none" }}
-                  />
-                  {videoFile && <Text fontSize="sm" color="var(--color-muted)">{(videoFile as any).name} ausgewählt</Text>}
-                  <Button colorScheme="blue" loading={videoCheckLoading} onClick={handleSubmit}>
-                    <Icon as={FiCheckCircle} mr={2} /> Hochladen
-                  </Button>
-                </VStack>
-              </CardBody>
-            </Card.Root>
-          )}
         </VStack>
       </SimpleGrid>
 
-      {/* Daily Checks Modal */}
-      <Dialog.Root open={dcListOpen} onOpenChange={(e: any) => setDcListOpen(e.open)}>
-        <Portal>
-          <Dialog.Backdrop />
-          <Dialog.Positioner>
-            <Dialog.Content maxW="4xl" bg="var(--color-surface)" borderWidth="1px" borderColor="var(--color-border)">
-              <Dialog.Header>
-                <Dialog.Title>Daily Checks</Dialog.Title>
-                <Dialog.CloseTrigger asChild><CloseButton size="sm" /></Dialog.CloseTrigger>
-              </Dialog.Header>
-              <Dialog.Body>
-                {dcListLoading ? (
-                  <Flex align="center" justify="center" py={8}><Spinner /></Flex>
-                ) : (
-                  <Flex gap={4} direction={{ base: "column", md: "row" }}>
-                    <VStack align="stretch" flex={1} maxH="60vh" overflowY="auto">
-                      {dcList.map((it:any)=> (
-                        <Button key={it.id} variant={dcSelected?.id===it.id? 'solid':'outline'} onClick={()=> selectDailyCheck(it)} justifyContent="space-between">
-                          <span>{new Date(it.date).toLocaleDateString("de-DE")}</span>
-                          <span>{it.passCount} / {it.total}</span>
-                        </Button>
-                      ))}
-                    </VStack>
-                    <Flex flex={2} direction="column" minH="320px">
-                      {dcDetailLoading ? (
-                        <Flex flex={1} align="center" justify="center"><Spinner /></Flex>
-                      ) : dcDetail ? (
-                        <>
-                          <Heading size="sm" mb={2}>{new Date(dcDetail.date).toLocaleDateString("de-DE")}</Heading>
-                          <Text mb={3}>Video: {renderVideoStatus(dcDetail.video)}</Text>
-                          <VStack align="stretch" gap={2}>
-                            {dcDetail.violations.length === 0 ? (
-                              <Text>Keine Verstöße.</Text>
-                            ) : (
-                              dcDetail.violations.map((v: any) => (
-                                <Flex key={v.id} direction="column" p={2} borderWidth="1px" borderColor="var(--color-border)" borderRadius="md">
-                                  <Text fontWeight="medium">{v.title}</Text>
-                                  {v.note && (<Text fontSize="sm" color="var(--color-muted)">{v.note}</Text>)}
-                                </Flex>
-                              ))
-                            )}
-                          </VStack>
-                          {user?.role !== 'ADMIN' && (
-                            <Flex mt={4} gap={3} wrap="wrap">
-                              <Button onClick={() => handleRequestVideo(dcSelected!.id)} disabled={!dcSelected} loading={videoReqLoading}>Video anfragen / prüfen</Button>
-                              <Button variant="outline" onClick={() => handleDownload(dcSelected!.id)} disabled={!dcSelected}>Jetzt herunterladen</Button>
-                            </Flex>
-                          )}
-                        </>
-                      ) : (
-                        <Text>Wähle einen DailyCheck für Details.</Text>
-                      )}
-                    </Flex>
-                  </Flex>
-                )}
-              </Dialog.Body>
-              <Dialog.Footer>
-                <Button onClick={() => setDcListOpen(false)}>Schließen</Button>
-              </Dialog.Footer>
-            </Dialog.Content>
-          </Dialog.Positioner>
-        </Portal>
-      </Dialog.Root>
     </Stack>
   );
 }
 
-function renderVideoStatus(video: any) {
-  if (!video || !video.id) return "–";
-  if (!video.archivedAt) return "Hot";
-  if (video.restoreStatus) return video.restoreStatus;
-  return "Archiviert";
-}
 
 function getGuaranteeStatus(flagCount: number) {
   if (flagCount >= 10) return { text: "❌ Garantie verloren", color: "red" } as const;

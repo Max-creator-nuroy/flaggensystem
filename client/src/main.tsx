@@ -9,10 +9,8 @@ import {
 import { router } from "./Router/router";
 
 createRoot(document.getElementById("root")!).render(
-  <StrictMode>
-    <Provider>
-      <RouterProvider router={router} />{" "}
-      <Toaster />
-    </Provider>
-  </StrictMode>
+  <Provider>
+    <RouterProvider router={router} />
+    <Toaster />
+  </Provider>
 );

@@ -14,10 +14,18 @@ export const authenticateToken = (
 ) => {
   const authHeader = req.headers["authorization"];
   const token = authHeader && authHeader.split(" ")[1];
-  if (!token) return res.sendStatus(401);
+  
+  if (!token) {
+    console.log("❌ No token provided");
+    return res.sendStatus(401);
+  }
 
   jwt.verify(token, JWT_SECRET, (err, user) => {
-    if (err) return res.sendStatus(403);
+    if (err) {
+      console.log("❌ Token verification failed:", err.message);
+      return res.sendStatus(403);
+    }
+    console.log("✅ Token verified for user:", user);
     req.user = user;
     next();
   });

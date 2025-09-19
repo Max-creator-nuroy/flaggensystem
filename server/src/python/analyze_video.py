@@ -116,7 +116,22 @@ with open(criteria_json, "r", encoding="utf-8") as f:
 
 # Prompt bauen aus den Descriptions
 def build_prompt(criteria):
-    base = "Please analyze the following sequence of video frames and answer the following questions with 'true' or 'false' and why in a JSON format - { id: <ID>, answer: true, why: ""} if the video clearly fulfills the criterion\n:\n\n"
+    base = """Please analyze the following sequence of video frames and answer the following questions with 'true' or 'false' and why in a JSON format - { id: <ID>, answer: true, why: ""} if the video clearly fulfills the criterion.
+
+🚨 CRITICAL PRIVACY REQUIREMENT 🚨
+- NEVER mention, quote, or reference ANY names, usernames, or personal identifiers visible in the video
+- NEVER mention specific people, contacts, or chat participants 
+- NEVER include text content from messages, usernames, or profile names
+- NEVER mention faces or identifying personal characteristics
+- Only describe general actions, behaviors, interface elements, and counts
+- Use generic terms like "person", "user", "contact", "message" instead of specific names
+- Replace any visible names with [NAME] or [CONTACT] if absolutely necessary to reference
+
+Focus only on observable behaviors and interface interactions without revealing any personal information.
+
+Questions to analyze:
+
+"""
     questions = [f"ID {item['id']}: {item['description']}" for item in criteria]
     return base + "\n".join(questions)
 

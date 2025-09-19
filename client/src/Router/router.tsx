@@ -4,6 +4,7 @@ import Login from "../pages/Login";
 import ForgotPassword from "../pages/ForgotPassword";
 import ResetPassword from "../pages/ResetPassword";
 import DashboardUser from "../pages/User/DashboardUser";
+import DailyChecks from "../pages/User/DailyChecks";
 import DashboardAdmin from "../pages/Admin/Dashboard";
 import DashboardCoach from "../pages/Coach/DashboardCoach";
 import Requirement from "../pages/Coach/Requirement";
@@ -54,6 +55,7 @@ export const router = createBrowserRouter([
         ),
         children: [
           { path: "dashboard/CUSTOMER", element: <DashboardUser /> },
+          { path: "dailyChecks", element: <DailyChecks /> },
           { path: "profilePage", element: <ProfilePage /> },
           { path: "flagList", element: <FlagList /> },
           { path: "customerFlags", element: <CustomerFlags /> },
@@ -65,6 +67,7 @@ export const router = createBrowserRouter([
         children: [
           { path: "dashboard/CUSTOMER", element: <DashboardUser /> },
           { path: "dashboard/COACH", element: <DashboardCoach /> },
+          { path: "dailyChecks", element: <DailyChecks /> },
           { path: "inbox/coach", element: <CoachInbox /> },
           { path: "flagList", element: <FlagList /> },
           { path: "customerFlags", element: <CustomerFlags /> },

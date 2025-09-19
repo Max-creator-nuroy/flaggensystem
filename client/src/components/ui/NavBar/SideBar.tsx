@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { FiHome, FiMenu, FiX } from "react-icons/fi";
+import { FiHome, FiMenu, FiX, FiCalendar } from "react-icons/fi";
 import { BsExclamation, BsFlag, BsPeople, BsPerson, BsQuestion } from "react-icons/bs";
 import { LuLogOut } from "react-icons/lu";
 import getUserFromToken from "@/services/getTokenFromLokal";
@@ -31,6 +31,7 @@ export default function SideBar() {
     ],
     CUSTOMER: [
       { label: 'Home', to: 'dashboard/CUSTOMER', icon: FiHome },
+      { label: 'Daily Checks', to: 'dailyChecks', icon: FiCalendar, show: user?.isCustomer },
       { label: 'Fragen', to: 'survey', icon: BsQuestion, show: user?.isCustomer },
       { label: 'Flaggen', to: 'flagList', icon: BsFlag, show: user?.isCustomer},
       { label: 'Leads', to: 'leadList', icon: BsPerson, show: user?.isAffiliate },

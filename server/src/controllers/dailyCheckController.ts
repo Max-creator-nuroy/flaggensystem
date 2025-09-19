@@ -10,15 +10,27 @@ const prisma = new PrismaClient();
 
 // POST /createDailyCheck/:userId
 export const createDailyCheck = async (req: Request, res: Response) => {
+  let finalPath: string | undefined; // Declare outside try block for cleanup
+  
   try {
     const userId = req.params.userId;
+    const authUser = (req as any).user;
+    
+    console.log("🎯 DailyCheck creation request:");
+    console.log("  - userId from params:", userId);
+    console.log("  - authUser from token:", authUser);
 
     // User aus DB holen
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) {
+      console.log("❌ User not found:", userId);
       return res.status(404).json({ message: "User nicht gefunden" });
     }
+    
+    console.log("✅ User found:", { id: user.id, isCustomer: user.isCustomer, role: user.role });
+    
     if (!user.isCustomer) {
+      console.log("❌ User is not a customer:", { isCustomer: user.isCustomer, role: user.role });
       return res
         .status(403)
         .json({ message: "Nur Kunden dürfen DailyChecks erstellen" });
@@ -28,7 +40,7 @@ export const createDailyCheck = async (req: Request, res: Response) => {
 
     // Dateiname zu "Name_Nachname_YYYY-MM-DD.ext" umbenennen
     let finalFilename = videoFile?.filename as string;
-    let finalPath = videoFile?.path || path.join("server", "Videos", finalFilename);
+    finalPath = videoFile?.path || path.join("server", "Videos", finalFilename);
     try {
       const dateStr = new Date().toISOString().slice(0, 10);
       const base = `${(user.name || "User").replace(/[^a-zA-Z0-9-_]/g, "_")}_${(user.last_name || "").replace(/[^a-zA-Z0-9-_]/g, "_")}_${dateStr}`.replace(/_+/g, "_").replace(/^_+|_+$/g, "");
@@ -50,31 +62,6 @@ export const createDailyCheck = async (req: Request, res: Response) => {
       finalPath = videoFile?.path || path.join("server", "Videos", finalFilename);
     }
 
-    //zuerst das Video erstellen
-    const video = await prisma.video.create({
-      data: {
-        url: "server/Videos/" + finalFilename,
-        title: `${user.name || "User"} ${user.last_name || ""} ${new Date().toISOString().slice(0,10)}`.trim(),
-        userId: userId,
-      },
-    });
-
-    //danach den Check
-    const dailyCheck = await prisma.dailyCheck.upsert({
-      where: {
-        userId_date: {
-          userId: userId,
-          date: new Date(), // Datum ohne Uhrzeit
-        },
-      },
-      update: {},
-      create: {
-        userId: userId,
-        date: new Date(), // vollständiges Date-Objekt
-        videoId: video.id,
-      },
-    });
-
     //hole den Coach
     const coach = await prisma.coachCustomer.findFirst({
       where: {
@@ -93,11 +80,43 @@ export const createDailyCheck = async (req: Request, res: Response) => {
     // 📤 Schritt 1: Hochladen in GCS
     // const gcsUri = await uploadToGCS(videoFile?.path, videoFile?.fieldname);
 
-    // 🧠 Schritt 2: Analyse mit Gemini
+    // 🧠 Schritt 2: Analyse mit Gemini (ZUERST analysieren!)
+    console.log("🔍 Debug finalPath:", finalPath);
+    console.log("🔍 Debug videoFile.path:", videoFile?.path);
+    const videoForAnalysis = { ...videoFile, path: finalPath };
+    console.log("🔍 Debug videoForAnalysis.path:", videoForAnalysis.path);
+    
     const rawGeminiResponse: any = await analyzeVideoWithGemini(
-      videoFile,
+      videoForAnalysis,
       requirements
     );
+
+    // Nur wenn Analyse erfolgreich war, Video und DailyCheck erstellen
+    const video = await prisma.video.create({
+      data: {
+        url: "server/Videos/" + finalFilename,
+        title: `${user.name || "User"} ${user.last_name || ""} ${new Date().toISOString().slice(0,10)}`.trim(),
+        userId: userId,
+      },
+    });
+
+    //danach den Check
+    const dailyCheck = await prisma.dailyCheck.upsert({
+      where: {
+        userId_date: {
+          userId: userId,
+          date: new Date(), // Datum ohne Uhrzeit
+        },
+      },
+      update: {
+        videoId: video.id, // Update mit neuer Video-ID falls bereits existiert
+      },
+      create: {
+        userId: userId,
+        date: new Date(), // vollständiges Date-Objekt
+        videoId: video.id,
+      },
+    });
 
     const analysisResults = {
       results: rawGeminiResponse.map((item: any) => ({
@@ -134,10 +153,24 @@ export const createDailyCheck = async (req: Request, res: Response) => {
         await checkAndEscalateFlags(userId);
       }
     }
-    res.json({ message: "DailyCheck erstellt" });
+    res.json({ message: "DailyCheck erfolgreich erstellt" });
   } catch (error) {
     console.error("Fehler beim Erstellen:", error);
-    res.status(500).json({ message: "Fehler beim Erstellen des Dailychecks" });
+    
+    // Video-Datei löschen wenn Verarbeitung fehlschlägt
+    try {
+      if (finalPath && fs.existsSync(finalPath)) {
+        fs.unlinkSync(finalPath);
+        console.log("🗑️ Video-Datei gelöscht nach Fehler:", finalPath);
+      }
+    } catch (deleteError) {
+      console.error("Fehler beim Löschen der Video-Datei:", deleteError);
+    }
+    
+    res.status(500).json({ 
+      message: "Fehler beim Erstellen des Dailychecks",
+      error: error instanceof Error ? error.message : "Unbekannter Fehler"
+    });
   }
 };
 
@@ -157,17 +190,25 @@ export const listDailyChecksWithViolations = async (req: Request, res: Response)
       include: { video: true, entries: { select: { fulfilled: true } } as any },
     } as any);
 
-    const list = checks.map((c: any) => ({
-      id: c.id,
-      date: c.date,
-      violationsCount: c.entries.filter((e: any) => !e.fulfilled).length,
-      video: {
-        id: c.video?.id,
-        title: c.video?.title,
-        archivedAt: c.video?.archivedAt,
-        restoreStatus: c.video?.restoreStatus,
-      },
-    }));
+    const list = checks.map((c: any) => {
+      const total = c.entries.length;
+      const passCount = c.entries.filter((e: any) => e.fulfilled).length;
+      const violationsCount = c.entries.filter((e: any) => !e.fulfilled).length;
+      
+      return {
+        id: c.id,
+        date: c.date,
+        total: total,
+        passCount: passCount,
+        violationsCount: violationsCount,
+        video: {
+          id: c.video?.id,
+          title: c.video?.title,
+          archivedAt: c.video?.archivedAt,
+          restoreStatus: c.video?.restoreStatus,
+        },
+      };
+    });
     res.json(list);
   } catch (e) {
     console.error(e);
@@ -200,8 +241,18 @@ export const getDailyCheckViolations = async (req: Request, res: Response) => {
 export const requestVideoDownload = async (req: Request, res: Response) => {
   try {
     const { dailyCheckId } = req.params;
-    const dc = await prisma.dailyCheck.findUnique({ where: { id: dailyCheckId }, include: { video: true } });
+    const authUser = (req as any).user;
+    
+    const dc = await prisma.dailyCheck.findUnique({ 
+      where: { id: dailyCheckId }, 
+      include: { video: true, user: true } 
+    });
     if (!dc || !dc.video) return res.status(404).json({ message: "Video nicht gefunden" });
+
+    // Check permissions: user can only request their own videos, unless they are COACH/ADMIN
+    if (authUser.role === 'CUSTOMER' && dc.userId !== authUser.id) {
+      return res.status(403).json({ message: "Keine Berechtigung für dieses Video" });
+    }
 
     // Wenn bereits lokal/Hot ⇒ sofort ok
     if (!dc.video.archivedAt) {
@@ -230,8 +281,18 @@ export const requestVideoDownload = async (req: Request, res: Response) => {
 export const downloadDailyCheckVideo = async (req: Request, res: Response) => {
   try {
     const { dailyCheckId } = req.params;
-    const dc = await prisma.dailyCheck.findUnique({ where: { id: dailyCheckId }, include: { video: true } });
+    const authUser = (req as any).user;
+    
+    const dc = await prisma.dailyCheck.findUnique({ 
+      where: { id: dailyCheckId }, 
+      include: { video: true, user: true } 
+    });
     if (!dc || !dc.video) return res.status(404).json({ message: "Video nicht gefunden" });
+
+    // Check permissions: user can only download their own videos, unless they are COACH/ADMIN
+    if (authUser.role === 'CUSTOMER' && dc.userId !== authUser.id) {
+      return res.status(403).json({ message: "Keine Berechtigung für dieses Video" });
+    }
 
     // Hot/local verfügbar
     if (!dc.video.archivedAt) {

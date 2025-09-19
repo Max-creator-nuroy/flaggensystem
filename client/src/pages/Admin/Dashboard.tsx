@@ -41,11 +41,9 @@ export default function DashboardAdmin() {
 
   // Load base counts and coach list
   useEffect(() => {
-    let toastId: string | undefined;
     const load = async () => {
+      setLoadingCounts(true);
       try {
-        setLoadingCounts(true);
-        toastId = String(toaster.create({ title: "Lade Übersichts-Daten", type: "loading" }));
         const [coachRes, custRes] = await Promise.all([
           fetch("http://localhost:3000/users/getAllCoaches", { headers: authHeaders }),
           fetch("http://localhost:3000/users/getAllCustomer", { headers: authHeaders }),
@@ -60,7 +58,6 @@ export default function DashboardAdmin() {
         toaster.create({ title: "Fehler", description: e?.message || String(e), type: "error" });
       } finally {
         setLoadingCounts(false);
-        if (toastId) toaster.dismiss(toastId);
       }
     };
     load();
@@ -68,11 +65,9 @@ export default function DashboardAdmin() {
 
   // Load customer growth
   useEffect(() => {
-    let toastId: string | undefined;
     const load = async () => {
+      setLoadingCustomerGrowth(true);
       try {
-        setLoadingCustomerGrowth(true);
-        toastId = String(toaster.create({ title: "Kundenwachstum", description: `${daysCustomer} Tage…`, type: "loading" }));
         const res = await fetch(`http://localhost:3000/admin/stats/customerGrowth?days=${daysCustomer}`,{ headers: authHeaders });
         if (!res.ok) throw new Error("Fehler beim Laden Kundenwachstum");
         const json = await res.json();
@@ -81,7 +76,6 @@ export default function DashboardAdmin() {
         toaster.create({ title: "Fehler", description: e?.message || String(e), type: "error" });
       } finally {
         setLoadingCustomerGrowth(false);
-        if (toastId) toaster.dismiss(toastId);
       }
     };
     load();

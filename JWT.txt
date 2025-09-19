@@ -3,7 +3,8 @@ d48d677d27baf76fea81499cb43e1b8e8b966df12d6d3fed6143082e0e4f12db
 
 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
 
-Hetzner Root password: 16m^W1N{p*Q\"\{q
+Hetzner 
+Root password: 16m^W1N{p*Q\"\{q
 	Max password: 0GnX9oDY/zVp3D&=
 	appuser Password: wtT^,BYc)07(3hg7
 	www-data: D2ySb+P34nGVJjy0
