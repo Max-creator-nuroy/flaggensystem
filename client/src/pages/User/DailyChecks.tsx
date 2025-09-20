@@ -14,6 +14,8 @@ import {
   Input,
   Badge,
   SimpleGrid,
+  Portal,
+  Dialog,
 } from "@chakra-ui/react";
 import { useEffect, useState } from "react";
 import { FiCalendar, FiArrowLeft, FiVideo, FiDownload, FiUpload, FiCheckCircle } from "react-icons/fi";
@@ -41,6 +43,7 @@ export default function DailyChecks() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'processing' | 'completed' | 'error'>('idle');
   const [uploadStatusText, setUploadStatusText] = useState('');
+  const [isDragOver, setIsDragOver] = useState(false);
 
   // Coach requirements state
   const [requirements, setRequirements] = useState<any[]>([]);
@@ -51,6 +54,15 @@ export default function DailyChecks() {
     loadDailyCheckList();
     loadRequirements();
   }, [userIdParam, token]);
+
+  // Helper function to check if daily check is completed today
+  const isDailyCheckCompletedToday = () => {
+    const today = new Date().toDateString();
+    return dcList.some(check => {
+      const checkDate = new Date(check.date).toDateString();
+      return checkDate === today;
+    });
+  };
 
   const loadDailyCheckList = async () => {
     try {
@@ -225,7 +237,6 @@ export default function DailyChecks() {
       }
       
       const reqData = await reqRes.json();
-      console.log("Requirements data:", reqData);
       setRequirements(reqData.requirement || []);
     } catch (e) {
       console.error("Error loading requirements:", e);
@@ -394,6 +405,45 @@ export default function DailyChecks() {
     }
   };
 
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    if (!isDailyCheckCompletedToday()) {
+      setIsDragOver(true);
+    }
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    if (isDailyCheckCompletedToday()) return;
+    
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+      const file = files[0];
+      if (file.type.startsWith('video/')) {
+        setVideoFile(file);
+      } else {
+        toaster.create({ 
+          title: "Fehler", 
+          description: "Bitte wähle eine gültige Video-Datei aus", 
+          type: "error" 
+        });
+      }
+    }
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setVideoFile(file);
+    }
+  };
+
   const renderVideoStatus = (video: any) => {
     if (!video || !video.id) return "–";
     if (!video.archivedAt) return "Hot";
@@ -422,34 +472,160 @@ export default function DailyChecks() {
         </CardHeader>
       </Card.Root>
 
-      {/* Video Upload Section */}
-      <Card.Root mb={6} bg="var(--color-surface)" borderWidth="1px" borderColor="var(--color-border)">
-        <CardHeader>
-          <Heading size="md">Video hochladen</Heading>
-          <Text color="var(--color-muted)" fontSize="sm">
-            Lade dein tägliches Video hoch, um es gegen die Coach-Kriterien bewerten zu lassen
-          </Text>
-        </CardHeader>
-        <CardBody>
-          {/* File input */}
-          <VStack gap={4} align="stretch">
-            <Input
-              id="video-upload-daily"
-              type="file"
-              accept="video/*"
-              onChange={(e) => setVideoFile(e.target.files?.[0] || null)}
-              disabled={uploadStatus === 'uploading' || uploadStatus === 'processing'}
-              bg="var(--color-surface)"
-              borderColor="var(--color-border)"
-              _hover={{ borderColor: "var(--color-accent)" }}
-            />
+      {/* Video Upload Section - Hidden for Coaches and Admins */}
+      {user?.role === 'CUSTOMER' && (
+        <Card.Root 
+          mb={6} 
+          bg="var(--color-surface)" 
+          borderWidth="1px" 
+          borderColor={isDailyCheckCompletedToday() ? "green.400" : "var(--color-border)"}
+          opacity={isDailyCheckCompletedToday() ? 0.7 : 1}
+          position="relative"
+        >
+          {isDailyCheckCompletedToday() && (
+            <Box
+              position="absolute"
+              top={3}
+              right={3}
+              bg="green.500"
+              color="white"
+              px={2}
+              py={1}
+              rounded="md"
+              fontSize="xs"
+              fontWeight="bold"
+              zIndex={1}
+            >
+              ✅ Heute bereits erledigt
+            </Box>
+          )}
+          <CardHeader>
+            <Heading size="md" color={isDailyCheckCompletedToday() ? "var(--color-muted)" : "var(--color-text)"}>
+              Video hochladen
+            </Heading>
+            <Text color="var(--color-muted)" fontSize="sm">
+              {isDailyCheckCompletedToday() 
+                ? "Du hast heute bereits einen Daily Check erstellt. Komm morgen wieder!"
+                : "Lade dein tägliches Video hoch, um es gegen die Coach-Kriterien bewerten zu lassen"
+              }
+            </Text>
+          </CardHeader>
+          <CardBody>
+            {/* Custom File Upload Area */}
+            <VStack gap={4} align="stretch">
+              <Box
+                position="relative"
+                borderWidth="2px"
+                borderStyle="dashed"
+                borderColor={
+                  isDailyCheckCompletedToday() ? "gray.300" :
+                  isDragOver ? "blue.400" : 
+                  videoFile ? "green.400" : "var(--color-border)"
+                }
+                borderRadius="lg"
+                p={8}
+                textAlign="center"
+                bg={
+                  isDailyCheckCompletedToday() ? "gray.50" :
+                  isDragOver ? "blue.50" : 
+                  videoFile ? "green.50" : "var(--color-surface)"
+                }
+                cursor={isDailyCheckCompletedToday() ? "not-allowed" : "pointer"}
+                transition="all 0.2s ease"
+                _hover={!isDailyCheckCompletedToday() ? {
+                  borderColor: "blue.400",
+                  bg: "blue.50"
+                } : {}}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                onClick={() => {
+                  if (!isDailyCheckCompletedToday()) {
+                    document.getElementById('video-upload-daily')?.click();
+                  }
+                }}
+              >
+                <Input
+                  id="video-upload-daily"
+                  type="file"
+                  accept="video/*"
+                  onChange={handleFileSelect}
+                  disabled={isDailyCheckCompletedToday() || uploadStatus === 'uploading' || uploadStatus === 'processing'}
+                  position="absolute"
+                  opacity={0}
+                  w="full"
+                  h="full"
+                  cursor="pointer"
+                />
+                
+                <VStack gap={3}>
+                  <Icon 
+                    as={FiUpload} 
+                    boxSize={12} 
+                    color={
+                      isDailyCheckCompletedToday() ? "gray.400" :
+                      videoFile ? "green.500" : "blue.500"
+                    } 
+                  />
+                  <VStack gap={1}>
+                    <Text 
+                      fontWeight="semibold" 
+                      color={isDailyCheckCompletedToday() ? "gray.500" : "var(--color-text)"}
+                    >
+                      {isDailyCheckCompletedToday() ? 
+                        "Upload nicht verfügbar" : 
+                        videoFile ? 
+                          "Video ausgewählt" : 
+                          "Video hier ablegen oder klicken"
+                      }
+                    </Text>
+                    <Text 
+                      fontSize="sm" 
+                      color="var(--color-muted)"
+                    >
+                      {isDailyCheckCompletedToday() ? 
+                        "Heute bereits einen Daily Check erstellt" :
+                        "Unterstützte Formate: MP4, MOV, AVI, WMV"
+                      }
+                    </Text>
+                  </VStack>
+                </VStack>
+              </Box>
             
-            {videoFile && uploadStatus === 'idle' && (
-              <Card.Root p={3} bg="rgba(34, 197, 94, 0.1)" borderColor="green.500">
-                <Text fontSize="sm" fontWeight="medium">{videoFile.name}</Text>
-                <Text fontSize="xs" color="var(--color-muted)">
-                  {((videoFile.size) / (1024 * 1024)).toFixed(2)} MB
-                </Text>
+            {videoFile && uploadStatus === 'idle' && !isDailyCheckCompletedToday() && (
+              <Card.Root 
+                p={4} 
+                bg="rgba(34, 197, 94, 0.1)" 
+                borderColor="green.500"
+                borderWidth="1px"
+                borderRadius="lg"
+              >
+                <Flex align="center" justify="space-between" gap={3}>
+                  <Flex align="center" gap={3}>
+                    <Icon as={FiVideo} color="green.600" boxSize={5} />
+                    <VStack align="start" gap={0}>
+                      <Text fontSize="sm" fontWeight="medium" color="green.700">
+                        {videoFile.name}
+                      </Text>
+                      <Text fontSize="xs" color="green.600">
+                        {((videoFile.size) / (1024 * 1024)).toFixed(2)} MB
+                      </Text>
+                    </VStack>
+                  </Flex>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    colorScheme="red"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setVideoFile(null);
+                      const fileInput = document.getElementById("video-upload-daily") as HTMLInputElement;
+                      if (fileInput) fileInput.value = '';
+                    }}
+                  >
+                    Entfernen
+                  </Button>
+                </Flex>
               </Card.Root>
             )}
 
@@ -489,20 +665,23 @@ export default function DailyChecks() {
 
             <Button
               w="full"
-              colorScheme="blue"
+              colorScheme={isDailyCheckCompletedToday() ? "green" : "blue"}
               onClick={handleVideoUpload}
-              disabled={!videoFile || videoCheckLoading || uploadStatus === 'uploading' || uploadStatus === 'processing'}
+              disabled={isDailyCheckCompletedToday() || !videoFile || videoCheckLoading || uploadStatus === 'uploading' || uploadStatus === 'processing'}
               loading={videoCheckLoading}
               size="lg"
+              variant={isDailyCheckCompletedToday() ? "outline" : "solid"}
             >
-              <Icon as={FiUpload} mr={2} />
-              {uploadStatus === 'uploading' ? 'Video wird hochgeladen...' : 
+              <Icon as={isDailyCheckCompletedToday() ? FiCheckCircle : FiUpload} mr={2} />
+              {isDailyCheckCompletedToday() ? 'Heute bereits abgeschlossen' :
+               uploadStatus === 'uploading' ? 'Video wird hochgeladen...' : 
                uploadStatus === 'processing' ? 'Video wird verarbeitet...' : 
                'Video hochladen und bewerten lassen'}
             </Button>
           </VStack>
         </CardBody>
       </Card.Root>
+      )}
 
       {/* Coach Requirements Section */}
       <Card.Root mb={6} bg="var(--color-surface)" borderWidth="1px" borderColor="var(--color-border)">
@@ -668,6 +847,7 @@ export default function DailyChecks() {
           )}
         </CardBody>
       </Card.Root>
+
     </Box>
   );
 }

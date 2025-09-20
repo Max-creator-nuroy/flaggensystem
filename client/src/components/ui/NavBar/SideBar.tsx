@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { FiHome, FiMenu, FiX, FiCalendar } from "react-icons/fi";
+import { FiHome, FiMenu, FiX, FiCalendar, FiBarChart2, FiMail } from "react-icons/fi";
 import { BsExclamation, BsFlag, BsPeople, BsPerson, BsQuestion } from "react-icons/bs";
 import { LuLogOut } from "react-icons/lu";
 import getUserFromToken from "@/services/getTokenFromLokal";
@@ -19,14 +19,14 @@ export default function SideBar() {
       { label: 'Home', to: 'dashboard/ADMIN', icon: FiHome },
       { label: 'Fragen', to: 'survey/surveyAnswers', icon: BsQuestion },
       { label: 'Kunden', to: 'customerList/ADMIN', icon: BsPeople },
-      { label: 'Statistiken', to: 'statistic', icon: BsFlag },
+      { label: 'Statistiken', to: 'statistic', icon: FiBarChart2 },
     ],
     COACH: [
       { label: 'Home', to: 'dashboard/COACH', icon: FiHome },
       { label: 'Fragen', to: 'survey/surveyAnswers', icon: BsQuestion },
       { label: 'Kriterien', to: 'requirement', icon: BsExclamation },
       { label: 'Kunden', to: 'customerList', icon: BsPeople },
-  { label: 'Nachrichten', to: 'inbox/coach', icon: BsFlag },
+  { label: 'Nachrichten', to: 'inbox/coach', icon: FiMail },
       // Coach 'Statistiken' removed
     ],
     CUSTOMER: [

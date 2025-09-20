@@ -17,7 +17,6 @@ export default function ProfilPage() {
   const [name, setName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
-  const [role, setRole] = useState("");
   const [mobileNumber, setMobileNumber] = useState("");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -42,7 +41,6 @@ export default function ProfilPage() {
         setName(data.name || "");
         setLastName(data.last_name || "");
         setEmail(data.email || "");
-        setRole(data.role || "");
         setMobileNumber(data.mobileNumber || "");
       })
       .catch(() => {
@@ -150,23 +148,6 @@ export default function ProfilPage() {
     }
   };
 
-  const handleGetPipelines = async () => {
-    try {
-      const res = await fetch(
-        "http://localhost:3000/close/getPipelinesFromClose",
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`, // falls Auth benötigt wird
-          },
-        }
-      );
-      if (res) toaster.success({ title: "Erfolgreich geladen" });
-    } catch (error) {
-      console.error("Fehler beim Laden der Pipelines:", error);
-    }
-  };
-
   return (
     <Box
       maxW="480px"
@@ -259,11 +240,6 @@ export default function ProfilPage() {
             </Stack>
           </Box>
         )}
-        {role === "ADMIN" ? 
-          <Button onClick={handleGetPipelines} colorScheme="blue">
-            Close Pipelines laden
-          </Button>
-        :""}
       </Stack>
     </Box>
   );

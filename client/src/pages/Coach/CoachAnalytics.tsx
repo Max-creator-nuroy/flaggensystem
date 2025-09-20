@@ -1,8 +1,9 @@
 import { useEffect, useState, useMemo } from 'react';
-import { Box, Flex, Text, Button, Spinner } from '@chakra-ui/react';
+import { Box, Flex, Text, Button, Spinner, Card, CardBody, VStack, Icon } from '@chakra-ui/react';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as ReTooltip, ResponsiveContainer } from 'recharts';
 import { useSearchParams } from 'react-router-dom';
 import getUserFromToken from '@/services/getTokenFromLokal';
+import { FiTarget } from 'react-icons/fi';
 
 interface LeadGrowthPoint { date:string; newLeads:number; cumulative:number; }
 interface CustomerGrowthPoint { date:string; newCustomers:number; cumulative:number; }
@@ -35,6 +36,9 @@ export default function CoachAnalytics(){
   const [failDays, setFailDays] = useState(30);
   const [failures, setFailures] = useState<RequirementFailure[]>([]);
   const [loadingFailures, setLoadingFailures] = useState(false);
+
+  // Coach requirements
+  const [requirements, setRequirements] = useState<any[]>([]);
 
   const fetchLeadGrowth = async () => {
     setLoadingGrowth(true);
@@ -104,9 +108,25 @@ export default function CoachAnalytics(){
     } finally { setLoadingFailures(false); }
   };
 
+  const fetchRequirements = async () => {
+    try {
+      const current = getUserFromToken(token || '')?.id;
+      const id = coachId || current;
+      if(!id) return;
+      const res = await fetch(`http://localhost:3000/requirement/getRequirementByCoach/${id}`, { headers });
+      if(res.ok){ 
+        const json = await res.json();
+        setRequirements(json.requirement || []); 
+      }
+    } catch(e) {
+      console.error('Failed to fetch requirements:', e);
+    }
+  };
+
   useEffect(()=> { fetchLeadGrowth(); }, [days, coachId]);
   useEffect(()=> { fetchCustomerGrowth(); }, [custDays, coachId]);
   useEffect(()=> { fetchRequirementFailures(); }, [failDays, coachId]);
+  useEffect(()=> { fetchRequirements(); }, [coachId]);
 
   const totalLeads = growth.length ? growth[growth.length-1].cumulative : 0;
   const newLeadsPeriod = useMemo(()=> growth.reduce((s,c)=> s + c.newLeads,0), [growth]);
@@ -231,7 +251,48 @@ export default function CoachAnalytics(){
             )}
           </Box>
         </Box>
+
+        {/* Coach Requirements Section */}
+        <Box p={5} borderWidth='1px' borderColor='var(--color-border)' rounded='xl' bg='var(--color-surface)' shadow='sm' gridColumn='1 / -1'>
+          <Text fontSize='sm' fontWeight='semibold' mb={4}>Meine Kriterien ({requirements.length})</Text>
+          {requirements.length === 0 ? (
+            <Flex justify='center' align='center' py={8}>
+              <VStack gap={3}>
+                <Icon as={FiTarget} boxSize={12} color='gray.400' />
+                <Text fontSize='sm' color='gray.500'>Keine Kriterien definiert</Text>
+              </VStack>
+            </Flex>
+          ) : (
+            <Box display='grid' gridTemplateColumns='repeat(auto-fill, minmax(320px, 1fr))' gap={3}>
+              {requirements.map((req: any) => (
+                <Card 
+                  key={req.id}
+                  bg='rgba(168, 85, 247, 0.05)'
+                  borderColor='purple.200'
+                  borderWidth='1px'
+                  size='sm'
+                >
+                  <CardBody p={4}>
+                    <VStack align='stretch' gap={2}>
+                      <Text fontSize='sm' fontWeight='semibold'>{req.title}</Text>
+                      {req.description ? (
+                        <Text fontSize='xs' color='var(--color-muted)' whiteSpace='pre-wrap'>
+                          {req.description}
+                        </Text>
+                      ) : (
+                        <Text fontSize='xs' color='var(--color-muted)' fontStyle='italic'>
+                          Keine Beschreibung verfügbar
+                        </Text>
+                      )}
+                    </VStack>
+                  </CardBody>
+                </Card>
+              ))}
+            </Box>
+          )}
+        </Box>
       </Box>
+
     </Flex>
   );
 }

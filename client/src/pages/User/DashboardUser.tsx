@@ -23,9 +23,10 @@ import {
   Textarea,
   Switch,
   Icon,
+  Box,
 } from "@chakra-ui/react";
 import { useEffect, useState } from "react";
-import { FiFlag, FiShield, FiTrendingUp, FiUser, FiCalendar } from "react-icons/fi";
+import { FiFlag, FiShield, FiTrendingUp, FiUser, FiCalendar, FiUsers } from "react-icons/fi";
 import Moment from "moment";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { toaster } from "@/components/ui/toaster";
@@ -53,6 +54,9 @@ export default function Dashboard() {
   const [isAffiliate, setIsAffiliate] = useState(!!userData?.isAffiliate);
   const [isCustomer, setIsCustomer] = useState(!!userData?.isCustomer);
   const [absenceRequests, setAbsenceRequests] = useState<any[]>([]);
+  const [leadsData, setLeadsData] = useState<any[]>([]);
+  const [totalLeads, setTotalLeads] = useState(0);
+  const [leadsLoading, setLeadsLoading] = useState(false);
   const [absenceReqLoading, setAbsenceReqLoading] = useState(false);
   const [journalEntries, setJournalEntries] = useState<any[]>([]);
   const [journalLoading, setJournalLoading] = useState(false);
@@ -168,7 +172,12 @@ export default function Dashboard() {
     // Eigene Abwesenheits-Anfragen (nur wenn eigener User und Rolle CUSTOMER)
   loadAbsenceRequests();
   loadJournal();
-  }, [userIdParam, token]);
+  
+  // Load leads data for affiliates
+  if (userData?.isAffiliate) {
+    loadLeadsData();
+  }
+  }, [userIdParam, token, userData?.isAffiliate]);
 
 
   const refreshDailyChecks = async () => {
@@ -183,6 +192,25 @@ export default function Dashboard() {
     const data = await res.json();
     setDailCheckList(data.dailyChecks || []);
     setFlags(data.flags || []);
+  };
+
+  const loadLeadsData = async () => {
+    const uid = userIdParam == null ? user.id : userIdParam;
+    try {
+      setLeadsLoading(true);
+      const res = await fetch(`http://localhost:3000/leads/getLeadsByAffiliate/${uid}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setLeadsData(data || []);
+        setTotalLeads(data?.length || 0);
+      }
+    } catch (error) {
+      console.error("Error loading leads:", error);
+    } finally {
+      setLeadsLoading(false);
+    }
   };
 
 
@@ -328,98 +356,199 @@ export default function Dashboard() {
     return acc + (total > 0 && passed === total ? 1 : 0);
   }, 0);
 
+  // Affiliate Dashboard
+  if (userData?.isAffiliate && !userData?.isCustomer) {
+    return (
+      <Stack>
+        {/* Hero */}
+        <Flex
+          direction="column"
+          gap={3}
+          p={{ base: 5, md: 8 }}
+          rounded="xl"
+          bgGradient="linear(to-r, blue.500, purple.600)"
+          color="white"
+        >
+          <Heading size="lg" fontWeight="800">
+            Affiliate Dashboard
+          </Heading>
+          <Text opacity={0.9}>
+            {userData?.name} {userData?.last_name}
+          </Text>
+        </Flex>
+
+        {/* KPIs */}
+        <SimpleGrid columns={{ base: 1, sm: 2, lg: 3 }} gap={4} mt={4}>
+          <Card.Root bg="var(--color-surface)" borderWidth="1px" borderColor="var(--color-border)">
+            <CardBody>
+              <Flex align="center" justify="space-between">
+                <Flex direction="column">
+                  <Text fontSize="sm" color="var(--color-muted)">Gesamt Leads</Text>
+                  <Heading size="lg">{leadsLoading ? "..." : totalLeads}</Heading>
+                </Flex>
+                <Icon as={FiUsers} color="blue.500" boxSize={6} />
+              </Flex>
+            </CardBody>
+          </Card.Root>
+          
+          <Card.Root bg="var(--color-surface)" borderWidth="1px" borderColor="var(--color-border)">
+            <CardBody>
+              <Flex align="center" justify="space-between">
+                <Flex direction="column">
+                  <Text fontSize="sm" color="var(--color-muted)">Coach</Text>
+                  <Heading size="md">{coach ? `${coach.name} ${coach.last_name}` : "—"}</Heading>
+                </Flex>
+                <Icon as={FiUser} color="gray.500" boxSize={6} />
+              </Flex>
+            </CardBody>
+          </Card.Root>
+
+          <Card.Root bg="var(--color-surface)" borderWidth="1px" borderColor="var(--color-border)">
+            <CardBody>
+              <Flex align="center" justify="space-between">
+                <Flex direction="column">
+                  <Text fontSize="sm" color="var(--color-muted)">Status</Text>
+                  <Heading size="md">Affiliate</Heading>
+                </Flex>
+                <Icon as={FiTrendingUp} color="green.500" boxSize={6} />
+              </Flex>
+            </CardBody>
+          </Card.Root>
+        </SimpleGrid>
+
+        {/* Main Content */}
+        <SimpleGrid columns={{ base: 1, xl: 2 }} gap={4} mt={4}>
+          {/* Leads Chart */}
+          <Card.Root 
+            bg="var(--color-surface)" 
+            borderWidth="1px" 
+            borderColor="var(--color-border)"
+            cursor="pointer"
+            onClick={() => navigate(userIdParam ? `/leadlist?userId=${userIdParam}` : '/leadlist')}
+            _hover={{ bg: "rgba(255,255,255,0.04)", transform: "translateY(-1px)" }}
+            transition="all 0.2s"
+          >
+            <CardHeader>
+              <Heading size="md">Leads pro Tag</Heading>
+              <Text color="var(--color-muted)" fontSize="sm">
+                Klicken für Details
+              </Text>
+            </CardHeader>
+            <CardBody>
+              {leadsLoading ? (
+                <Flex align="center" justify="center" py={8}>
+                  <Spinner size="md" />
+                </Flex>
+              ) : (
+                <Flex align="center" justify="center" py={8}>
+                  <VStack>
+                    <Icon as={FiUsers} boxSize={12} color="blue.500" />
+                    <Text>Lead-Chart wird hier angezeigt</Text>
+                    <Text fontSize="sm" color="var(--color-muted)">
+                      {totalLeads} Leads insgesamt
+                    </Text>
+                  </VStack>
+                </Flex>
+              )}
+            </CardBody>
+          </Card.Root>
+
+          {/* Profile */}
+          <Card.Root bg="var(--color-surface)" borderWidth="1px" borderColor="var(--color-border)">
+            <CardHeader><Heading size="md">Profil</Heading></CardHeader>
+            <CardBody>
+              <Text><b>Name:</b> {userData?.name} {userData?.last_name}</Text>
+              <Text><b>E-Mail:</b> {userData?.email}</Text>
+              {userData?.mobileNumber && <Text><b>Telefon:</b> {userData?.mobileNumber}</Text>}
+              <Text mt={3}><b>Coach:</b> {coach ? `${coach.name} ${coach.last_name}` : "Kein Coach zugewiesen"}</Text>
+            </CardBody>
+          </Card.Root>
+        </SimpleGrid>
+      </Stack>
+    );
+  }
+
   return (
     <Stack>
       {/* Hero */}
-      <Flex
-        direction="column"
-        gap={3}
-        p={{ base: 5, md: 8 }}
-        rounded="xl"
-        bgGradient="linear(to-r, teal.500, teal.600)"
-        color="white"
+      <Card.Root 
+        overflow="hidden"
+        bg="var(--color-surface)"
+        borderWidth="1px"
+        borderColor="var(--color-border)"
+        position="relative"
       >
-        <Heading size="lg" fontWeight="800">
-          {userIdParam == null ? "Willkommen zurück," : "Profil von "} {userData?.name}
-          {userData?.isDeleted && (
-            <Badge
-              ml={3}
-              bg="var(--color-surface)"
-              color="var(--color-text)"
-              borderWidth="1px"
-              borderColor="var(--color-border)"
-              borderLeftWidth="4px"
-              borderLeftColor="red.600"
-              rounded="md"
-            >
-              Deaktiviert
-            </Badge>
-          )}
-          {currentAbsence && (
-            <Badge
-              ml={3}
-              bg="var(--color-surface)"
-              color="var(--color-text)"
-              borderWidth="1px"
-              borderColor="var(--color-border)"
-              borderLeftWidth="4px"
-              borderLeftColor="yellow.500"
-              rounded="md"
-            >
-              Abwesend: {currentAbsence.type}
-            </Badge>
-          )}
-        </Heading>
-        <Flex wrap="wrap" gap={3} align="center">
-          {isCustomer && (
-            <Badge
-              bg="var(--color-surface)"
-              color="var(--color-text)"
-              borderWidth="1px"
-              borderColor="var(--color-border)"
-              borderLeftWidth="4px"
-              borderLeftColor={`${guarantee.color}.500`}
-              rounded="md"
-            >
-              {guarantee.text}
-            </Badge>
-          )}
-          {userData?.phase && !userIdParam && (
-            <Badge
-              bg="var(--color-surface)"
-              color="var(--color-text)"
-              borderWidth="1px"
-              borderColor="var(--color-border)"
-              borderLeftWidth="4px"
-              borderLeftColor="blue.500"
-              rounded="md"
-            >Phase: {userData.phase.label || userData.phase.name}</Badge>
-          )}
-          {coach && (
-            <Badge
-              bg="var(--color-surface)"
-              color="var(--color-text)"
-              borderWidth="1px"
-              borderColor="var(--color-border)"
-              borderLeftWidth="4px"
-              borderLeftColor="gray.500"
-              rounded="md"
-            >
-              Coach: {coach.name} {coach.last_name}
-            </Badge>
-          )}
-          {user?.role === "ADMIN" && userIdParam && (
-            <Button
-              size="sm"
-              colorScheme={userData?.isDeleted ? "green" : "red"}
-              variant="outline"
-              onClick={toggleCustomerStatus}
-            >
-              {userData?.isDeleted ? "Kunde aktivieren" : "Kunde deaktivieren"}
-            </Button>
-          )}
-        </Flex>
-        <Flex gap={3} wrap="wrap" mt={1}>
+        <Box
+          position="absolute"
+          top={0}
+          left={0}
+          right={0}
+          bottom={0}
+          bgGradient="linear(135deg, rgba(14, 165, 233, 0.1), rgba(99, 102, 241, 0.1))"
+        />
+        <CardBody p={{ base: 6, md: 8 }} position="relative">
+          <Flex direction={{ base: "column", md: "row" }} justify="space-between" align={{ md: "center" }} gap={4}>
+            <VStack align="start" gap={2}>
+              <Flex align="center" gap={3}>
+                <Flex 
+                  w={12} h={12} 
+                  align="center" justify="center" 
+                  rounded="full" 
+                  bg="blue.500"
+                  color="white"
+                  fontSize="lg"
+                  fontWeight="bold"
+                >
+                  {userData?.name?.charAt(0)}{userData?.last_name?.charAt(0)}
+                </Flex>
+                <VStack align="start" gap={0}>
+                  <Heading size="lg" color="var(--color-text)">
+                    {userIdParam == null ? "Willkommen zurück," : "Profil von "} {userData?.name}
+                  </Heading>
+                  <Text color="var(--color-muted)" fontSize="sm">
+                    {userData?.email}
+                  </Text>
+                </VStack>
+              </Flex>
+              
+              <Flex wrap="wrap" gap={2}>
+                {userData?.isDeleted && (
+                  <Badge colorScheme="red" variant="subtle">
+                    Deaktiviert
+                  </Badge>
+                )}
+                {currentAbsence && (
+                  <Badge colorScheme="yellow" variant="subtle">
+                    Abwesend: {currentAbsence.type}
+                  </Badge>
+                )}
+                {isCustomer && (
+                  <Badge colorScheme="green" variant="subtle">
+                    Kunde
+                  </Badge>
+                )}
+                {isAffiliate && (
+                  <Badge colorScheme="blue" variant="subtle">
+                    Affiliate
+                  </Badge>
+                )}
+              </Flex>
+            </VStack>
+            
+            <VStack align={{ base: "start", md: "end" }} gap={2}>
+              <Text fontSize="sm" color="var(--color-muted)">
+                {guarantee.text}
+              </Text>
+              <Text fontSize="xs" color="var(--color-muted)">
+                Letzter Login: {new Date().toLocaleDateString('de-DE')}
+              </Text>
+            </VStack>
+          </Flex>
+        </CardBody>
+      </Card.Root>
+
+      {/* Action Buttons */}
+      <Flex gap={3} wrap="wrap" mt={4}>
           <Button variant="outline" onClick={() => navigate(userIdParam ? `/dailyChecks?userId=${userIdParam}` : '/dailyChecks')}>
             <Icon as={FiCalendar} mr={2} /> Daily Checks ansehen
           </Button>
@@ -598,7 +727,6 @@ export default function Dashboard() {
             </Portal>
           </Dialog.Root>
         </Flex>
-      </Flex>
 
       {/* KPIs */}
       <SimpleGrid columns={{ base: 1, sm: 2, lg: 4 }} gap={4} mt={4}>
@@ -611,37 +739,6 @@ export default function Dashboard() {
       {/* Main */}
       <SimpleGrid columns={{ base: 1, xl: 3 }} gap={4} mt={4}>
         <VStack align="stretch" gap={4} gridColumn={{ xl: "span 2" }}>
-          {user?.role === 'CUSTOMER' && !userIdParam && (
-            <Card.Root bg="var(--color-surface)" borderWidth="1px" borderColor="var(--color-border)">
-              <CardHeader><Heading size="md">Urlaubs / Krank-Anfragen</Heading></CardHeader>
-              <CardBody>
-                {absenceReqLoading && (
-                  <Flex align="center" justify="center" py={6}><Spinner size="sm" /></Flex>
-                )}
-                {!absenceReqLoading && absenceRequests.length === 0 && (
-                  <Text fontSize="sm" color="var(--color-muted)">Keine Anfragen gesendet.</Text>
-                )}
-                {!absenceReqLoading && absenceRequests.length > 0 && (
-                  <VStack align="stretch" gap={3}>
-                    {absenceRequests.slice(0,6).map((r:any) => {
-                      const stateBadge = r.accepted == null ? { text: 'Offen', color: 'yellow.500' } : r.accepted ? { text: 'Akzeptiert', color: 'green.500' } : { text: 'Abgelehnt', color: 'red.500' };
-                      return (
-                        <Flex key={r.id} direction="column" p={3} borderWidth="1px" borderColor="var(--color-border)" rounded="md" gap={1}>
-                          <Flex align="center" gap={2} wrap="wrap">
-                            <Heading size="xs">{r.type === 'URLAUB' ? 'Urlaub' : r.type === 'KRANKHEIT' ? 'Krank' : 'Anfrage'}</Heading>
-                            <Badge bg="var(--color-surface)" color="var(--color-text)" borderWidth="1px" borderColor="var(--color-border)" borderLeftWidth="4px" borderLeftColor={stateBadge.color}>{stateBadge.text}</Badge>
-                            <Text fontSize="xs" ml="auto" color="var(--color-muted)">{new Date(r.createdAt).toLocaleDateString('de-DE')}</Text>
-                          </Flex>
-                          <Text fontSize="sm"><b>Von:</b> {new Date(r.from).toLocaleDateString('de-DE')} <b>Bis:</b> {new Date(r.to).toLocaleDateString('de-DE')}</Text>
-                          {r.note && <Text fontSize="xs" color="var(--color-muted)" whiteSpace="pre-wrap">{r.note}</Text>}
-                        </Flex>
-                      );
-                    })}
-                  </VStack>
-                )}
-              </CardBody>
-            </Card.Root>
-          )}
           <Card.Root 
             bg="var(--color-surface)" 
             borderWidth="1px" 
@@ -682,9 +779,11 @@ export default function Dashboard() {
                   colorScheme={isDailyCheckCompletedToday() ? "green" : "red"} 
                   size="sm"
                 >
-                  {isDailyCheckCompletedToday() 
-                    ? "Daily Checks ansehen →" 
-                    : "Daily Check jetzt machen →"}
+                  {(user?.role === 'ADMIN' || user?.role === 'COACH') 
+                    ? "Daily Checks ansehen →"
+                    : isDailyCheckCompletedToday() 
+                      ? "Daily Checks ansehen →" 
+                      : "Daily Check jetzt machen →"}
                 </Button>
               </VStack>
             </CardBody>
@@ -736,100 +835,199 @@ export default function Dashboard() {
                         <Portal>
                           <Dialog.Backdrop />
                           <Dialog.Positioner>
-                            <Dialog.Content bg="var(--color-surface)" borderWidth="1px" borderColor="var(--color-border)">
+                            <Dialog.Content 
+                              bg="var(--color-surface)" 
+                              borderWidth="1px" 
+                              borderColor="var(--color-border)"
+                              borderRadius="lg"
+                              maxW="2xl"
+                              w="90vw"
+                            >
                               <Dialog.Header>
-                                <Dialog.Title>Flagge</Dialog.Title>
+                                <Flex align="center" gap={3}>
+                                  <Flex 
+                                    w={10} h={10} 
+                                    align="center" justify="center" 
+                                    rounded="full" 
+                                    bg={selectedFlag?.color === "RED" ? "red.500" : "yellow.500"}
+                                    color="white"
+                                  >
+                                    <Icon as={FiFlag} boxSize={5} />
+                                  </Flex>
+                                  <VStack align="start" gap={0}>
+                                    <Dialog.Title>
+                                      {selectedFlag?.color === "RED" ? "Rote Flagge" : "Gelbe Flagge"} Details
+                                    </Dialog.Title>
+                                    <Text fontSize="sm" color="var(--color-muted)">
+                                      Erstellt am {Moment(selectedFlag?.createdAt).format("DD.MM.YYYY HH:mm")} Uhr
+                                    </Text>
+                                  </VStack>
+                                </Flex>
+                                <Dialog.CloseTrigger asChild>
+                                  <CloseButton size="sm" />
+                                </Dialog.CloseTrigger>
                               </Dialog.Header>
+                              
                               <Dialog.Body>
                                 {selectedFlag && (
-                                  <VStack align="stretch" gap={4}>
-                                    <Flex align="center" gap={3}>
-                                      <Flex w="8" h="8" align="center" justify="center" rounded="full" bg="rgba(255,255,255,0.06)">
-                                        <Icon as={FiFlag} color={selectedFlag.color === "RED" ? "red.600" : "yellow.600"} />
-                                      </Flex>
-                                      <Heading size="sm">{selectedFlag.color === "RED" ? "Rote Flagge" : "Gelbe Flagge"}</Heading>
-                                      <Badge
-                                        ml="auto"
-                                        bg="var(--color-surface)"
-                                        color="var(--color-text)"
-                                        borderWidth="1px"
-                                        borderColor="var(--color-border)"
-                                        borderLeftWidth="4px"
-                                        borderLeftColor={selectedFlag.color === "RED" ? "red.600" : "yellow.600"}
-                                        rounded="md"
-                                      >
-                                        {Moment(selectedFlag.createdAt).format("DD.MM.YYYY")}
-                                      </Badge>
-                                    </Flex>
+                                  <VStack align="stretch" gap={6}>
+                                    {/* Information Grid */}
+                                    <Card.Root>
+                                      <CardHeader pb={2}>
+                                        <Flex align="center" gap={2}>
+                                          <Icon as={FiFlag} color={selectedFlag.color === "RED" ? "red.500" : "yellow.500"} />
+                                          <Text fontWeight="semibold">Flaggen-Information</Text>
+                                        </Flex>
+                                      </CardHeader>
+                                      <CardBody pt={0}>
+                                        <VStack align="stretch" gap={3}>
+                                          <Flex justify="space-between">
+                                            <Text fontSize="sm" color="var(--color-muted)">Farbe:</Text>
+                                            <Badge 
+                                              colorScheme={selectedFlag.color === "RED" ? "red" : "yellow"}
+                                              variant="subtle"
+                                            >
+                                              {selectedFlag.color === "RED" ? "Rot" : "Gelb"}
+                                            </Badge>
+                                          </Flex>
+                                          <Flex justify="space-between">
+                                            <Text fontSize="sm" color="var(--color-muted)">Erstellt:</Text>
+                                            <Text fontSize="sm" fontWeight="medium">
+                                              {Moment(selectedFlag.createdAt).format("DD.MM.YYYY HH:mm")}
+                                            </Text>
+                                          </Flex>
+                                          <Flex justify="space-between">
+                                            <Text fontSize="sm" color="var(--color-muted)">ID:</Text>
+                                            <Text fontSize="sm" fontFamily="mono">
+                                              #{selectedFlag.id.slice(-8)}
+                                            </Text>
+                                          </Flex>
+                                        </VStack>
+                                      </CardBody>
+                                    </Card.Root>
 
-                                    <SimpleGrid columns={{ base: 1, md: 2 }} gap={3}>
-                                      <Card.Root p={3} bg="var(--color-surface)" borderWidth="1px" borderColor="var(--color-border)">
-                                        <Text fontSize="xs" color="gray.500">Farbe</Text>
-                                        <Text fontWeight="medium">{selectedFlag.color === "RED" ? "Rot" : "Gelb"}</Text>
+                                    {/* Requirement Section */}
+                                    {selectedFlag.requirement?.title && (
+                                      <Card.Root>
+                                        <CardHeader>
+                                          <Flex align="center" gap={2}>
+                                            <Icon as={FiShield} color="purple.500" />
+                                            <Text fontWeight="semibold">Verknüpftes Kriterium</Text>
+                                          </Flex>
+                                        </CardHeader>
+                                        <CardBody>
+                                          <Card.Root bg="rgba(147, 51, 234, 0.1)" borderWidth="1px" borderColor="purple.200">
+                                            <CardBody p={3}>
+                                              <Text fontWeight="medium">{selectedFlag.requirement.title}</Text>
+                                              {selectedFlag.requirement.description && (
+                                                <Text fontSize="sm" color="var(--color-muted)" mt={1}>
+                                                  {selectedFlag.requirement.description}
+                                                </Text>
+                                              )}
+                                            </CardBody>
+                                          </Card.Root>
+                                        </CardBody>
                                       </Card.Root>
-                                      <Card.Root p={3} bg="var(--color-surface)" borderWidth="1px" borderColor="var(--color-border)">
-                                        <Text fontSize="xs" color="gray.500">Eskalationen</Text>
-                                        <Text fontWeight="medium">Von: {selectedFlag.escalatedFrom?.length || 0} · Zu: {selectedFlag.escalatedTo?.length || 0}</Text>
-                                      </Card.Root>
-                                      {selectedFlag.requirement?.title && (
-                                        <Card.Root p={3} bg="var(--color-surface)" borderWidth="1px" borderColor="var(--color-border)">
-                                          <Text fontSize="xs" color="gray.500">Kriterium</Text>
-                                          <Text fontWeight="medium">{selectedFlag.requirement.title}</Text>
-                                        </Card.Root>
-                                      )}
-                                    </SimpleGrid>
+                                    )}
 
+                                    {/* Content Section */}
                                     {selectedFlag.escalatedFrom.length === 0 ? (
-                                      <Card.Root p={3} bg="var(--color-surface)" borderWidth="1px" borderColor="var(--color-border)">
-                                        <Text fontWeight="medium" mb={1}>Kommentar</Text>
-                                        <Text>{selectedFlag.comment || "—"}</Text>
+                                      <Card.Root>
+                                        <CardHeader>
+                                          <Flex align="center" gap={2}>
+                                            <Icon as={FiFlag} color="green.500" />
+                                            <Text fontWeight="semibold">Kommentar</Text>
+                                          </Flex>
+                                        </CardHeader>
+                                        <CardBody>
+                                          <Card.Root bg="rgba(34, 197, 94, 0.1)" borderWidth="1px" borderColor="green.200">
+                                            <CardBody p={3}>
+                                              <Text whiteSpace="pre-wrap">
+                                                {selectedFlag.comment || "Kein Kommentar vorhanden"}
+                                              </Text>
+                                            </CardBody>
+                                          </Card.Root>
+                                        </CardBody>
                                       </Card.Root>
                                     ) : (
-                                      <Card.Root p={3} bg="var(--color-surface)" borderWidth="1px" borderColor="var(--color-border)">
-                                        <Text fontWeight="medium" mb={2}>Verlauf</Text>
-                                        <VStack align="stretch" gap={2}>
-                                          {collectRequirementsAndComments(selectedFlag).map((entry: ReqAndComment, i: number) => (
-                                            <Flex key={i} direction="column" p={2} borderWidth="1px" borderColor="var(--color-border)" borderRadius="md">
-                                              {entry.title ? (
-                                                <Text fontWeight="medium">{entry.title}</Text>
-                                              ) : (
-                                                entry.comment && <Text>{entry.comment}</Text>
-                                              )}
-                                              <Text fontSize="sm" color="var(--color-muted)">{Moment(entry.date).format("DD.MM.YYYY")}</Text>
-                                            </Flex>
-                                          ))}
-                                        </VStack>
+                                      <Card.Root>
+                                        <CardHeader>
+                                          <Flex align="center" gap={2}>
+                                            <Icon as={FiCalendar} color="blue.500" />
+                                            <Text fontWeight="semibold">Flaggen-Verlauf</Text>
+                                          </Flex>
+                                        </CardHeader>
+                                        <CardBody>
+                                          <VStack align="stretch" gap={3}>
+                                            {collectRequirementsAndComments(selectedFlag).map((entry: ReqAndComment, i: number) => (
+                                              <Card.Root 
+                                                key={i} 
+                                                bg="rgba(59, 130, 246, 0.1)" 
+                                                borderWidth="1px" 
+                                                borderColor="blue.200"
+                                                borderLeftWidth="4px"
+                                                borderLeftColor="blue.500"
+                                              >
+                                                <CardBody p={3}>
+                                                  <Flex justify="space-between" align="start" gap={3}>
+                                                    <VStack align="start" gap={1} flex={1}>
+                                                      {entry.title ? (
+                                                        <Text fontWeight="medium">{entry.title}</Text>
+                                                      ) : (
+                                                        entry.comment && (
+                                                          <Text whiteSpace="pre-wrap">{entry.comment}</Text>
+                                                        )
+                                                      )}
+                                                    </VStack>
+                                                    <Badge variant="outline" size="sm">
+                                                      {Moment(entry.date).format("DD.MM.YYYY")}
+                                                    </Badge>
+                                                  </Flex>
+                                                </CardBody>
+                                              </Card.Root>
+                                            ))}
+                                          </VStack>
+                                        </CardBody>
                                       </Card.Root>
                                     )}
                                   </VStack>
                                 )}
                               </Dialog.Body>
+                              
                               <Dialog.Footer>
-                                {user?.role === "ADMIN" && selectedFlag?.id === flag.id && (
-                                  <Button
-                                    colorScheme="red"
-                                    variant="outline"
-                                    onClick={async () => {
-                                      const confirm = window.confirm("Bist du dir sicher diese Flagge zu löschen?");
-                                      if (!confirm) return;
-                                      try {
-                                        const res = await fetch(`http://localhost:3000/flags/deleteCascade/${flag.id}` , { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
-                                        if (res.ok) {
-                                          toaster.success({ title: "Flagge gelöscht" });
-                                          await refreshDailyChecks();
-                                          setSelectedFlag(null);
-                                        } else {
-                                          toaster.error({ title: "Löschen fehlgeschlagen" });
+                                <Flex gap={2} w="100%" justify="space-between">
+                                  {user?.role === "ADMIN" && selectedFlag?.id === flag.id ? (
+                                    <Button
+                                      colorScheme="red"
+                                      variant="outline"
+                                      onClick={async () => {
+                                        const confirm = window.confirm("Bist du dir sicher diese Flagge zu löschen?");
+                                        if (!confirm) return;
+                                        try {
+                                          const res = await fetch(`http://localhost:3000/flags/deleteCascade/${flag.id}` , { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
+                                          if (res.ok) {
+                                            toaster.success({ title: "Flagge gelöscht" });
+                                            await refreshDailyChecks();
+                                            setSelectedFlag(null);
+                                          } else {
+                                            toaster.error({ title: "Löschen fehlgeschlagen" });
+                                          }
+                                        } catch (e) {
+                                          toaster.error({ title: "Netzwerkfehler beim Löschen" });
                                         }
-                                      } catch (e) {
-                                        toaster.error({ title: "Netzwerkfehler beim Löschen" });
-                                      }
-                                    }}
-                                  >
-                                    Löschen
-                                  </Button>
-                                )}
-                                <Dialog.CloseTrigger asChild><Button>Schließen</Button></Dialog.CloseTrigger>
+                                      }}
+                                    >
+                                      🗑️ Flagge löschen
+                                    </Button>
+                                  ) : (
+                                    <Box />
+                                  )}
+                                  <Dialog.CloseTrigger asChild>
+                                    <Button colorScheme="blue">
+                                      ✅ Verstanden
+                                    </Button>
+                                  </Dialog.CloseTrigger>
+                                </Flex>
                               </Dialog.Footer>
                             </Dialog.Content>
                           </Dialog.Positioner>
@@ -838,6 +1036,36 @@ export default function Dashboard() {
                     );
                   })}
               </SimpleGrid>
+            </CardBody>
+          </Card.Root>
+
+          <Card.Root bg="var(--color-surface)" borderWidth="1px" borderColor="var(--color-border)">
+            <CardHeader><Heading size="md">Urlaubs / Krank-Anfragen</Heading></CardHeader>
+            <CardBody>
+              {absenceReqLoading && (
+                <Flex align="center" justify="center" py={6}><Spinner size="sm" /></Flex>
+              )}
+              {!absenceReqLoading && absenceRequests.length === 0 && (
+                <Text fontSize="sm" color="var(--color-muted)">Keine Anfragen gesendet.</Text>
+              )}
+              {!absenceReqLoading && absenceRequests.length > 0 && (
+                <VStack align="stretch" gap={3}>
+                  {absenceRequests.slice(0,6).map((r:any) => {
+                    const stateBadge = r.accepted == null ? { text: 'Offen', color: 'yellow.500' } : r.accepted ? { text: 'Akzeptiert', color: 'green.500' } : { text: 'Abgelehnt', color: 'red.500' };
+                    return (
+                      <Flex key={r.id} direction="column" p={3} borderWidth="1px" borderColor="var(--color-border)" rounded="md" gap={1}>
+                        <Flex align="center" gap={2} wrap="wrap">
+                          <Heading size="xs">{r.type === 'URLAUB' ? 'Urlaub' : r.type === 'KRANKHEIT' ? 'Krank' : 'Anfrage'}</Heading>
+                          <Badge bg="var(--color-surface)" color="var(--color-text)" borderWidth="1px" borderColor="var(--color-border)" borderLeftWidth="4px" borderLeftColor={stateBadge.color}>{stateBadge.text}</Badge>
+                          <Text fontSize="xs" ml="auto" color="var(--color-muted)">{new Date(r.createdAt).toLocaleDateString('de-DE')}</Text>
+                        </Flex>
+                        <Text fontSize="sm"><b>Von:</b> {new Date(r.from).toLocaleDateString('de-DE')} <b>Bis:</b> {new Date(r.to).toLocaleDateString('de-DE')}</Text>
+                        {r.note && <Text fontSize="xs" color="var(--color-muted)" whiteSpace="pre-wrap">{r.note}</Text>}
+                      </Flex>
+                    );
+                  })}
+                </VStack>
+              )}
             </CardBody>
           </Card.Root>
         </VStack>

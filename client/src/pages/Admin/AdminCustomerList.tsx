@@ -1,7 +1,37 @@
-import { Box, Flex, Heading, Input, Table, Text } from "@chakra-ui/react";
+import { 
+  Box, 
+  Flex, 
+  Heading, 
+  Input, 
+  Text, 
+  Card,
+  CardHeader,
+  CardBody,
+  Badge,
+  Button,
+  Icon,
+  VStack,
+  HStack,
+  SimpleGrid,
+  Spinner,
+  IconButton
+} from "@chakra-ui/react";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
-import { FiChevronUp, FiChevronDown } from "react-icons/fi";
+import { 
+  FiUsers, 
+  FiUserPlus, 
+  FiSearch, 
+  FiFilter,
+  FiAlertTriangle,
+  FiXCircle,
+  FiPhone,
+  FiUser,
+  FiTrendingUp,
+  FiDownload,
+  FiRefreshCw,
+  FiShield
+} from "react-icons/fi";
 
 export default function AdminCustomerList() {
   const token = localStorage.getItem("token");
@@ -17,6 +47,9 @@ export default function AdminCustomerList() {
   const [filterStatus, setFilterStatus] = useState<"all" | "atRisk" | "lost">(
     "all"
   );
+  // Replace single role filter with independent toggles
+  const [showCustomers, setShowCustomers] = useState(true);
+  const [showAffiliates, setShowAffiliates] = useState(true);
 
   const handleClick = (userId: string) => {
     navigate(`/dashboard/CUSTOMER?userId=${userId}`);
@@ -66,212 +99,385 @@ export default function AdminCustomerList() {
     fetchCustomer();
   }, []);
 
-  // erweitertes Filtern nach Suchbegriff UND Status
+  // helper for role sorting weight
+  const roleWeight = (u:any) => {
+    const isCust = u.isCustomer ?? (u.role === 'CUSTOMER');
+    const isAff = !!u.isAffiliate;
+    return (isAff && isCust) ? 2 : (isAff ? 1 : (isCust ? 0 : -1));
+  };
+
+  // erweitertes Filtern nach Suchbegriff, Status, Rolle
   const filteredCustomers = customerList.filter((customer: any) => {
-    // Suche filtern
-    const fullText = `${customer.name} ${customer.last_name} ${
-      customer.mobileNumber
-    } ${customer.isAffiliate ? "Affiliate" : "Kunde"}`.toLowerCase();
+    const isCust = (customer.isCustomer ?? (customer.role === 'CUSTOMER')) as boolean;
+    const isAff = !!customer.isAffiliate;
+
+    // Suche filtern (inkl. beider Rollenbezeichnungen, falls beides)
+    const roleTextParts:string[] = [];
+    if (isAff) roleTextParts.push("Affiliate");
+    if (isCust) roleTextParts.push("Kunde");
+    const fullText = `${customer.name} ${customer.last_name} ${customer.mobileNumber} ${roleTextParts.join(" ")}`.toLowerCase();
     if (!fullText.includes(searchTerm.toLowerCase())) return false;
+
+    const redFlags = customer.flags?.filter((flag: any) => flag.color === "RED").length || 0;
 
     // Filter nach Flag-Status
     if (filterStatus === "atRisk") {
-      const redFlags = (customer.flags?.filter((flag: any) => flag.color === "RED")?.length ?? 0);
-      return redFlags >= 5 && redFlags < 10;
+      if (!(redFlags >= 5 && redFlags < 10)) return false;
     } else if (filterStatus === "lost") {
-      const redFlags = (customer.flags?.filter((flag: any) => flag.color === "RED")?.length ?? 0);
-      return redFlags >= 10;
+      if (!(redFlags >= 10)) return false;
     }
 
-    return true; // "all"
+    // Rollen-Toggles (OR-Logik): zeigen, wenn eine der gewählten Rollen zutrifft
+    const roleMatch = ((showCustomers && isCust) || (showAffiliates && isAff));
+    if (!roleMatch) return false;
+
+    return true; // alles bestanden
   });
 
-  const sortedCustomers = useMemo(()=> {
-    const list = [...filteredCustomers];
-    return list.sort((a:any,b:any) => {
-      let av:any; let bv:any;
-      switch (sortKey) {
-        case 'name':
-          av = (a.name + ' ' + a.last_name).toLowerCase();
-          bv = (b.name + ' ' + b.last_name).toLowerCase();
-          break;
-        case 'phone':
-          av = a.mobileNumber || '';
-          bv = b.mobileNumber || '';
-          break;
-        case 'role':
-          av = a.isAffiliate ? 1 : 0;
-          bv = b.isAffiliate ? 1 : 0;
-          break;
-        case 'yellow':
-          av = (a.flags?.filter((f:any)=> f.color==='YELLOW' && ((f.escalatedTo?.length ?? 0)===0))?.length ?? 0);
-          bv = (b.flags?.filter((f:any)=> f.color==='YELLOW' && ((f.escalatedTo?.length ?? 0)===0))?.length ?? 0);
-          break;
-        case 'red':
-          av = (a.flags?.filter((f:any)=> f.color==='RED')?.length ?? 0);
-          bv = (b.flags?.filter((f:any)=> f.color==='RED')?.length ?? 0);
-          break;
-      }
-      if (av < bv) return sortDir==='asc' ? -1 : 1;
-      if (av > bv) return sortDir==='asc' ? 1 : -1;
-      return 0;
-    });
-  }, [filteredCustomers, sortKey, sortDir]);
+  const sortedCustomers = [...filteredCustomers].sort((a,b) => {
+    let av:any; let bv:any;
+    switch (sortKey) {
+      case 'name':
+        av = (a.name + ' ' + a.last_name).toLowerCase();
+        bv = (b.name + ' ' + b.last_name).toLowerCase();
+        break;
+      case 'phone':
+        av = a.mobileNumber || '';
+        bv = b.mobileNumber || '';
+        break;
+      case 'role':
+        av = roleWeight(a);
+        bv = roleWeight(b);
+        break;
+      case 'yellow':
+        av = a.flags?.filter((f:any)=> f.color==='YELLOW' && ((f.escalatedTo?.length ?? 0)===0)).length || 0;
+        bv = b.flags?.filter((f:any)=> f.color==='YELLOW' && ((f.escalatedTo?.length ?? 0)===0)).length || 0;
+        break;
+      case 'red':
+        av = a.flags?.filter((f:any)=> f.color==='RED').length || 0;
+        bv = b.flags?.filter((f:any)=> f.color==='RED').length || 0;
+        break;
+    }
+    if (av < bv) return sortDir==='asc' ? -1 : 1;
+    if (av > bv) return sortDir==='asc' ? 1 : -1;
+    return 0;
+  });
 
   const toggleSort = (key: typeof sortKey) => {
     if (key === sortKey) setSortDir(d=> d==='asc' ? 'desc' : 'asc'); else { setSortKey(key); setSortDir('asc'); }
   };
 
-  const exportCsv = () => {
-    const headers = ['Name','Telefon','Rolle','Gelb','Rot'];
-    const rows = sortedCustomers.map((c:any)=> [
-      `${c.name} ${c.last_name}`,
-      c.mobileNumber || '',
-      c.isAffiliate ? 'Affiliate' : 'Kunde',
-      (c.flags?.filter((f:any)=> f.color==='YELLOW' && ((f.escalatedTo?.length ?? 0)===0))?.length ?? 0),
-      (c.flags?.filter((f:any)=> f.color==='RED')?.length ?? 0),
-    ]);
-    const csv = [headers, ...rows].map(r=> r.join(';')).join('\n');
-    const blob = new Blob([csv], {type: 'text/csv;charset=utf-8;'});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = 'kunden.csv'; a.click();
-    URL.revokeObjectURL(url);
-  };
-
   const totalCustomers = customerList.length;
-  const avgRed = totalCustomers ? (customerList.reduce((acc,c)=> acc + ((c.flags?.filter((f:any)=> f.color==='RED')?.length ?? 0)),0)/ totalCustomers).toFixed(2) : '0';
 
   return (
-    <Box p={4} borderWidth="1px" rounded="lg" bg="var(--color-surface)" borderColor="var(--color-border)">
-      <Flex justify="space-between" wrap="wrap" gap={6}>
-        <Box minW="260px" flex="1">
-          <Heading size="md" mb={3}>
-            Kundenübersicht
-          </Heading>
-          <Input
-            placeholder="Suche nach Name, Nummer oder Rolle"
-            bg="var(--color-surface)"
-            borderColor="var(--color-border)"
-            shadow="sm"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            width="100%"
-            maxW="520px"
-            size="sm"
-          />
-          <Flex mt={3} gap={5} wrap="wrap" fontSize="sm">
-            <Text
-              px={3}
-              py={1}
-              bg={filterStatus==='atRisk' ? 'rgba(255,255,255,0.10)' : 'var(--color-badge-bg)'}
-              color="var(--color-text)"
-              border="1px solid var(--color-border)"
-              borderLeftWidth={filterStatus==='atRisk' ? '4px' : '1px'}
-              borderLeftColor="#a16207"
-              borderRadius="full"
-              cursor="pointer"
-              _hover={{ bg: 'rgba(255,255,255,0.12)' }}
-              onClick={()=> setFilterStatus(filterStatus==='atRisk' ? 'all':'atRisk')}
-              fontWeight="medium"
-            >
-              Gefährdet: {atRisk}
-            </Text>
-            <Text
-              px={3}
-              py={1}
-              bg={filterStatus==='lost' ? 'rgba(255,255,255,0.10)' : 'var(--color-badge-bg)'}
-              color="var(--color-text)"
-              border="1px solid var(--color-border)"
-              borderLeftWidth={filterStatus==='lost' ? '4px' : '1px'}
-              borderLeftColor="#b91c1c"
-              borderRadius="full"
-              cursor="pointer"
-              _hover={{ bg: 'rgba(255,255,255,0.12)' }}
-              onClick={()=> setFilterStatus(filterStatus==='lost' ? 'all':'lost')}
-              fontWeight="medium"
-            >
-              Verloren: {garantyLost}
-            </Text>
-            <Text px={3} py={1} bg="rgba(255,255,255,0.06)" color="var(--color-text)" borderRadius="full">Gesamt: {totalCustomers}</Text>
-            <Text px={3} py={1} bg="rgba(168,85,247,0.15)" color="var(--color-text)" borderRadius="full">∅ Rot: {avgRed}</Text>
-          </Flex>
-        </Box>
-        <Flex gap={4} align="flex-start" fontSize="sm">
-          <Text
-            as="span"
-            px={3}
-            py={1}
-            bg="rgba(255,255,255,0.06)"
-            color="var(--color-text)"
-            border="1px solid var(--color-border)"
-            borderRadius="md"
-            cursor={loading ? 'not-allowed':'pointer'}
-            opacity={loading?0.6:1}
-            _hover={loading ? {} : { bg: 'rgba(255,255,255,0.10)' }}
-            onClick={()=> !loading && fetchCustomer()}
-          >{loading? 'Lade...' : 'Aktualisieren'}</Text>
-          <Text
-            as="span"
-            px={3}
-            py={1}
-            bg="rgba(255,255,255,0.06)"
-            color="var(--color-text)"
-            border="1px solid var(--color-border)"
-            borderRadius="md"
-            cursor="pointer"
-            _hover={{ bg: 'rgba(255,255,255,0.10)' }}
-            onClick={exportCsv}
-          >Export CSV</Text>
-        </Flex>
-      </Flex>
-
-
-      <Box
-        overflowX="auto"
-        borderRadius="lg"
-        shadow="sm"
-        bg='var(--color-surface)'
-      >
-        <Table.Root size='sm' stickyHeader interactive className="admin-table">
-          <Table.Header>
-            <Table.Row bg="rgba(255,255,255,0.04)" borderBottom="1px solid var(--color-border)">
-              <Table.ColumnHeader onClick={()=>toggleSort('name')} _hover={{cursor:'pointer', bg:'rgba(255,255,255,0.06)'}}>
-                <Flex align='center' gap={1}>Name {sortKey==='name' && (sortDir==='asc' ? <FiChevronUp /> : <FiChevronDown />)}</Flex>
-              </Table.ColumnHeader>
-              <Table.ColumnHeader onClick={()=>toggleSort('phone')} _hover={{cursor:'pointer', bg:'rgba(255,255,255,0.06)'}}>
-                <Flex align='center' gap={1}>Telefon {sortKey==='phone' && (sortDir==='asc' ? <FiChevronUp /> : <FiChevronDown />)}</Flex>
-              </Table.ColumnHeader>
-              <Table.ColumnHeader onClick={()=>toggleSort('role')} _hover={{cursor:'pointer', bg:'rgba(255,255,255,0.06)'}}>
-                <Flex align='center' gap={1}>Rolle {sortKey==='role' && (sortDir==='asc' ? <FiChevronUp /> : <FiChevronDown />)}</Flex>
-              </Table.ColumnHeader>
-              <Table.ColumnHeader textAlign='end' onClick={()=>toggleSort('yellow')} _hover={{cursor:'pointer', bg:'rgba(255,255,255,0.06)'}}>
-                <Flex justify='flex-end' align='center' gap={1}>Gelb {sortKey==='yellow' && (sortDir==='asc' ? <FiChevronUp /> : <FiChevronDown />)}</Flex>
-              </Table.ColumnHeader>
-              <Table.ColumnHeader textAlign='end' onClick={()=>toggleSort('red')} _hover={{cursor:'pointer', bg:'rgba(255,255,255,0.06)'}}>
-                <Flex justify='flex-end' align='center' gap={1}>Rot {sortKey==='red' && (sortDir==='asc' ? <FiChevronUp /> : <FiChevronDown />)}</Flex>
-              </Table.ColumnHeader>
-            </Table.Row>
-          </Table.Header>
-          <Table.Body>
-            {sortedCustomers.map((c) => (
-              <Table.Row
-                key={c.id}
-                bg='var(--color-surface)'
-                borderBottom='1px solid #0a0f18'
-                _hover={{ bg:'rgba(0,0,0,0.22)' }}
-                onClick={() => handleClick(c.id)}
+    <Box maxW="7xl" mx="auto" px={{ base: 3, md: 6 }} py={6}>
+      {/* Header */}
+      <Card.Root mb={6}>
+        <CardHeader>
+          <Flex align="center" justify="space-between">
+            <Flex align="center" gap={3}>
+              <Flex 
+                w={12} h={12} 
+                align="center" justify="center" 
+                rounded="full" 
+                bg="purple.500"
+                color="white"
               >
-                <Table.Cell>{c.name} {c.last_name}</Table.Cell>
-                <Table.Cell>{c.mobileNumber}</Table.Cell>
-                <Table.Cell>{c.isAffiliate ? 'Affiliate' : 'Kunde'}</Table.Cell>
-                <Table.Cell textAlign='end' color='yellow.600'>{(c.flags?.filter((f:any)=> f.color==='YELLOW' && ((f.escalatedTo?.length ?? 0)===0))?.length ?? 0)}</Table.Cell>
-                <Table.Cell textAlign='end' color='red.600'>{(c.flags?.filter((f:any)=> f.color==='RED')?.length ?? 0)}</Table.Cell>
-              </Table.Row>
-            ))}
-          </Table.Body>
-        </Table.Root>
-      </Box>
+                <Icon as={FiShield} boxSize={6} />
+              </Flex>
+              <VStack align="start" gap={0}>
+                <Heading size="lg">Admin Kundenliste</Heading>
+                <Text color="var(--color-muted)" fontSize="sm">
+                  {filteredCustomers.length} von {customerList.length} Kunden
+                </Text>
+              </VStack>
+            </Flex>
+            <HStack gap={3}>
+              <Button 
+                variant="outline"
+                size="sm"
+                onClick={() => !loading && fetchCustomer()}
+                disabled={loading}
+                leftIcon={loading ? <Spinner size="xs" /> : <Icon as={FiRefreshCw} />}
+              >
+                {loading ? 'Lade...' : 'Aktualisieren'}
+              </Button>
+              <Button 
+                colorScheme="purple"
+                size="sm"
+                onClick={() => navigate('/admin')}
+                leftIcon={<Icon as={FiShield} />}
+              >
+                Admin Dashboard
+              </Button>
+            </HStack>
+          </Flex>
+        </CardHeader>
+      </Card.Root>
+
+      <Flex gap={6} direction={{ base: "column", lg: "row" }} align="flex-start">
+        {/* Sidebar Filters */}
+        <Card.Root w={{ base: "100%", lg: "320px" }} flexShrink={0} position="sticky" top={6}>
+          <CardHeader>
+            <Flex align="center" gap={2}>
+              <Icon as={FiFilter} color="purple.500" />
+              <Heading size="md">Filter & Suche</Heading>
+            </Flex>
+          </CardHeader>
+          <CardBody>
+            <VStack gap={6} align="stretch">
+              <VStack gap={1} align="stretch">
+                <Flex align="center" gap={2}>
+                  <Icon as={FiSearch} color="green.500" boxSize={4} />
+                  <Text fontSize="sm" fontWeight="semibold">Suche</Text>
+                </Flex>
+                <Input
+                  placeholder="Name, Nummer oder Rolle"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  bg="var(--color-surface)"
+                  borderColor="var(--color-border)"
+                />
+              </VStack>
+
+              <VStack gap={1} align="stretch">
+                <Flex align="center" gap={2}>
+                  <Icon as={FiUser} color="purple.500" boxSize={4} />
+                  <Text fontSize="sm" fontWeight="semibold">Rollen</Text>
+                </Flex>
+                <VStack gap={2} align="stretch">
+                  <label style={{ display:'flex', alignItems:'center', gap:8, cursor:'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={showCustomers}
+                      onChange={(e)=> setShowCustomers(e.currentTarget.checked)}
+                    />
+                    <Text fontSize="sm">Kunde</Text>
+                  </label>
+                  <label style={{ display:'flex', alignItems:'center', gap:8, cursor:'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={showAffiliates}
+                      onChange={(e)=> setShowAffiliates(e.currentTarget.checked)}
+                    />
+                    <Text fontSize="sm">Affiliate</Text>
+                  </label>
+                </VStack>
+              </VStack>
+
+              <VStack gap={1} align="stretch">
+                <Flex align="center" gap={2}>
+                  <Icon as={FiAlertTriangle} color="orange.500" boxSize={4} />
+                  <Text fontSize="sm" fontWeight="semibold">Status</Text>
+                </Flex>
+                <VStack gap={2} align="stretch">
+                  <Button
+                    size="sm"
+                    variant={filterStatus==='all' ? 'solid':'outline'}
+                    colorScheme="gray"
+                    onClick={()=> setFilterStatus('all')}
+                    justifyContent="flex-start"
+                    w="100%"
+                  >
+                    Alle Kunden
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={filterStatus==='atRisk' ? 'solid':'outline'}
+                    colorScheme="orange"
+                    onClick={()=> setFilterStatus('atRisk')}
+                    justifyContent="space-between"
+                    w="100%"
+                  >
+                    <Text>Gefährdet</Text>
+                    <Badge colorScheme="orange" variant="subtle">{atRisk}</Badge>
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={filterStatus==='lost' ? 'solid':'outline'}
+                    colorScheme="red"
+                    onClick={()=> setFilterStatus('lost')}
+                    justifyContent="space-between"
+                    w="100%"
+                  >
+                    <Text>Verloren</Text>
+                    <Badge colorScheme="red" variant="subtle">{garantyLost}</Badge>
+                  </Button>
+                </VStack>
+              </VStack>
+            </VStack>
+          </CardBody>
+        </Card.Root>
+
+        {/* Main Content */}
+        <Box flex="1">
+
+          {/* Sort Controls */}
+          <Card.Root mb={4}>
+            <CardBody>
+              <Flex align="center" justify="space-between" wrap="wrap" gap={3}>
+                <Text fontSize="sm" color="var(--color-muted)">
+                  Zeige {sortedCustomers.length} Kunden · Sortiert nach: {sortKey === 'name' ? 'Name' : sortKey === 'phone' ? 'Telefon' : sortKey === 'role' ? 'Rolle' : sortKey === 'yellow' ? 'Gelbe Flags' : 'Rote Flags'} ({sortDir === 'asc' ? 'aufsteigend' : 'absteigend'})
+                </Text>
+                <HStack gap={2}>
+                  <Button size="sm" variant={sortKey === 'name' ? 'solid' : 'outline'} onClick={() => toggleSort('name')}>
+                    Name {sortKey==='name' && (sortDir==='asc' ? '↑':'↓')}
+                  </Button>
+                  <Button size="sm" variant={sortKey === 'role' ? 'solid' : 'outline'} onClick={() => toggleSort('role')}>
+                    Rolle {sortKey==='role' && (sortDir==='asc' ? '↑':'↓')}
+                  </Button>
+                  <Button size="sm" variant={sortKey === 'red' ? 'solid' : 'outline'} onClick={() => toggleSort('red')} colorScheme="red">
+                    Flags {sortKey==='red' && (sortDir==='asc' ? '↑':'↓')}
+                  </Button>
+                </HStack>
+              </Flex>
+            </CardBody>
+          </Card.Root>
+
+          {/* Customer Cards */}
+          {sortedCustomers.length === 0 ? (
+            <Card.Root>
+              <CardBody>
+                <Flex justify="center" align="center" py={12}>
+                  <VStack gap={4}>
+                    <Icon as={FiUsers} boxSize={16} color="var(--color-muted)" />
+                    <Heading size="md" color="var(--color-muted)">
+                      Keine Kunden gefunden
+                    </Heading>
+                    <Text fontSize="sm" color="var(--color-muted)" textAlign="center">
+                      Keine Kunden entsprechen den aktuellen Filterkriterien.
+                      Passe deine Filter an.
+                    </Text>
+                  </VStack>
+                </Flex>
+              </CardBody>
+            </Card.Root>
+          ) : (
+            <SimpleGrid columns={{ base: 1, md: 2, xl: 3 }} gap={4}>
+              {sortedCustomers.map((customer) => {
+                const yellowFlags = customer.flags?.filter(
+                  (f: any) => f.color === "YELLOW" && ((f.escalatedTo?.length ?? 0) === 0)
+                ).length || 0;
+                const redFlags = customer.flags?.filter((f: any) => f.color === "RED").length || 0;
+                const isAffiliate = !!customer.isAffiliate;
+                const isCustomer = customer.isCustomer ?? (customer.role === 'CUSTOMER');
+                const riskLevel = redFlags >= 10 ? 'lost' : redFlags >= 5 ? 'at-risk' : 'safe';
+                
+                return (
+                  <Card.Root
+                    key={customer.id}
+                    _hover={{
+                      transform: "translateY(-4px)",
+                      borderColor: riskLevel === 'lost' ? "red.400" : riskLevel === 'at-risk' ? "orange.400" : "purple.400",
+                      cursor: "pointer",
+                      shadow: "lg"
+                    }}
+                    transition="all 0.2s ease"
+                    borderWidth="1px"
+                    borderColor={riskLevel === 'lost' ? "red.200" : riskLevel === 'at-risk' ? "orange.200" : "var(--color-border)"}
+                    bg="var(--color-surface)"
+                    onClick={() => handleClick(customer.id)}
+                  >
+                    <CardBody>
+                      <VStack align="stretch" gap={4}>
+                        {/* Header */}
+                        <Flex align="start" justify="space-between" gap={3}>
+                          <Flex align="center" gap={3} flex={1}>
+                            <Flex 
+                              w={10} h={10} 
+                              align="center" justify="center" 
+                              rounded="full" 
+                              bg={riskLevel === 'lost' ? "red.500" : riskLevel === 'at-risk' ? "orange.500" : "purple.500"}
+                              color="white"
+                              fontSize="sm"
+                              fontWeight="bold"
+                              border="2px solid"
+                              borderColor={riskLevel === 'lost' ? "red.300" : riskLevel === 'at-risk' ? "orange.300" : "purple.300"}
+                              shadow="md"
+                            >
+                              {customer.name?.charAt(0)}{customer.last_name?.charAt(0)}
+                            </Flex>
+                            <VStack align="start" gap={0} flex={1}>
+                              <Text fontWeight="semibold" lineHeight="1.3">
+                                {customer.name} {customer.last_name}
+                              </Text>
+                              <HStack gap={2}>
+                                {isAffiliate && isCustomer ? (
+                                  <Badge colorScheme="purple" variant="subtle" size="sm">
+                                    Affiliate & Kunde
+                                  </Badge>
+                                ) : isAffiliate ? (
+                                  <Badge colorScheme="green" variant="subtle" size="sm">
+                                    Affiliate
+                                  </Badge>
+                                ) : isCustomer ? (
+                                  <Badge colorScheme="blue" variant="subtle" size="sm">
+                                    Kunde
+                                  </Badge>
+                                ) : (
+                                  <Badge variant="subtle" size="sm">Unbekannt</Badge>
+                                )}
+                                
+                                {riskLevel === 'lost' && (
+                                  <Badge colorScheme="red" variant="solid" size="sm">
+                                    <Icon as={FiXCircle} mr={1} boxSize={3} />
+                                    Verloren
+                                  </Badge>
+                                )}
+                                {riskLevel === 'at-risk' && (
+                                  <Badge colorScheme="orange" variant="solid" size="sm">
+                                    <Icon as={FiAlertTriangle} mr={1} boxSize={3} />
+                                    Gefährdet
+                                  </Badge>
+                                )}
+                              </HStack>
+                            </VStack>
+                          </Flex>
+                        </Flex>
+                        
+                        {/* Contact Info */}
+                        {customer.mobileNumber && (
+                          <Flex align="center" gap={2}>
+                            <Icon as={FiPhone} boxSize={4} color="var(--color-muted)" />
+                            <Text fontSize="sm" color="var(--color-muted)">
+                              {customer.mobileNumber}
+                            </Text>
+                          </Flex>
+                        )}
+                        
+                        {/* Flags */}
+                        {(yellowFlags > 0 || redFlags > 0) && (
+                          <HStack justify="space-between">
+                            <HStack gap={3}>
+                              {yellowFlags > 0 && (
+                                <Flex align="center" gap={1}>
+                                  <Box w={3} h={3} rounded="full" bg="yellow.400" />
+                                  <Text fontSize="sm" fontWeight="medium" color="yellow.600">
+                                    {yellowFlags}
+                                  </Text>
+                                </Flex>
+                              )}
+                              {redFlags > 0 && (
+                                <Flex align="center" gap={1}>
+                                  <Box w={3} h={3} rounded="full" bg="red.400" />
+                                  <Text fontSize="sm" fontWeight="medium" color="red.600">
+                                    {redFlags}
+                                  </Text>
+                                </Flex>
+                              )}
+                            </HStack>
+                            <Icon as={FiTrendingUp} boxSize={4} color="var(--color-muted)" />
+                          </HStack>
+                        )}
+                      </VStack>
+                    </CardBody>
+                  </Card.Root>
+                );
+              })}
+            </SimpleGrid>
+          )}
+        </Box>
+      </Flex>
     </Box>
   );
 }

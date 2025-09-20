@@ -10,10 +10,17 @@ import {
   Input,
   Table,
   Badge,
+  Card,
+  CardBody,
+  CardHeader,
+  VStack,
+  Heading,
+  SimpleGrid,
 } from "@chakra-ui/react";
 import { useEffect, useState, useMemo } from "react";
 import {  CgProfile } from "react-icons/cg";
 import { FcQuestions } from "react-icons/fc";
+import { FiUsers, FiTrendingUp, FiBarChart2, FiUser, FiAward, FiTarget } from "react-icons/fi";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import getUserFromToken from "@/services/getTokenFromLokal";
 import { KpiCard } from "@/components/dashboard/KpiCard";
@@ -276,122 +283,218 @@ export default function DashboardCoach() {
 
   return (
     <Box maxW="7xl" mx="auto" px={{ base: 3, md: 6 }} py={6}>
-      {/* Header banner (like Admin) */}
-      <Box
+      {/* Modern Hero Section */}
+      <Card.Root 
         mb={8}
-        p={{ base: 5, md: 8 }}
-        bg={cardBg}
-        borderWidth="1px"
-        borderColor={borderCol}
-        position="relative"
         overflow="hidden"
+        bg="var(--color-surface)"
+        borderWidth="1px"
+        borderColor="var(--color-border)"
+        position="relative"
       >
-        <Box position="absolute" top="-40" right="-40" w="80" h="80" bg="whiteAlpha.100" rounded="full" />
-        <Flex align="center" justify="space-between" gap={4} flexWrap="wrap">
-          <Box>
-            <Text color="var(--color-text)" fontSize={{ base: "2xl", md: "3xl" }} fontWeight="bold">
-              {isAdmin && coachInfo ? `${coachInfo.name} ${coachInfo.last_name}` : "Coach Dashboard"}
-            </Text>
-            <Text color="var(--color-text)" fontSize={{ base: "sm" }}>
-              Übersicht über Wachstum und Kunden
-            </Text>
-          </Box>
-        </Flex>
-      </Box>
-
-      {/* KPI Grid */}
-      <Grid
-        templateColumns={{
-          base: "1fr",
-          md: "repeat(2,1fr)",
-          xl: "repeat(4,1fr)",
-        }}
-        gap={5}
-        mt={6}
-        mb={8}
-      >
-        <KpiCard
-          title="Gesamte Nutzer"
-          value={customerList.length}
-          subtitle={`${countAffiliate} Affiliates • ${countCustomer} Kunden`}
-          gradient={kpiColor("users")}
-          icon={<CgProfile />}
-          onClick={() => handleClick("/customerList")}
-        />
         <Box
-          borderRadius="lg"
-          borderWidth={1}
-          m={1}
-          mt={0}
-          bg={cardBg}
-          borderColor={borderCol}
-          p={5}
-          _hover={{
-            cursor: "pointer",
-            bg: 'rgba(255,255,255,0.04)',
-          }}
+          position="absolute"
+          top={0}
+          left={0}
+          right={0}
+          bottom={0}
+          bgGradient="linear(135deg, rgba(99, 102, 241, 0.1), rgba(16, 185, 129, 0.1))"
+        />
+        <CardBody p={{ base: 6, md: 8 }} position="relative">
+          <Flex direction={{ base: "column", md: "row" }} justify="space-between" align={{ md: "center" }} gap={4}>
+            <VStack align="start" gap={2}>
+              <Flex align="center" gap={3}>
+                <Flex 
+                  w={12} h={12} 
+                  align="center" justify="center" 
+                  rounded="full" 
+                  bg="purple.500"
+                  color="white"
+                  fontSize="lg"
+                  fontWeight="bold"
+                >
+                  <Icon as={FiUser} boxSize={6} />
+                </Flex>
+                <VStack align="start" gap={0}>
+                  <Heading size="lg" color="var(--color-text)">
+                    {isAdmin && coachInfo ? `Coach ${coachInfo.name} ${coachInfo.last_name}` : "Coach Dashboard"}
+                  </Heading>
+                  <Text color="var(--color-muted)" fontSize="sm">
+                    Übersicht über deine Kunden und deren Fortschritt
+                  </Text>
+                </VStack>
+              </Flex>
+              
+              <Flex wrap="wrap" gap={2} mt={2}>
+                <Badge colorScheme="purple" variant="subtle">
+                  Coach
+                </Badge>
+                {isAdmin && (
+                  <Badge colorScheme="blue" variant="subtle">
+                    Admin-Ansicht
+                  </Badge>
+                )}
+              </Flex>
+            </VStack>
+            
+            <VStack align={{ base: "start", md: "end" }} gap={2}>
+              <Text fontSize="sm" color="var(--color-muted)">
+                {customerList.length} Kunden betreut
+              </Text>
+              <Text fontSize="xs" color="var(--color-muted)">
+                {countAffiliate} Affiliates • {countCustomer} Kunden
+              </Text>
+            </VStack>
+          </Flex>
+        </CardBody>
+      </Card.Root>
+
+      {/* Modern KPI Grid */}
+      <SimpleGrid columns={{ base: 1, sm: 2, lg: 4 }} gap={4} mb={8}>
+        <Card.Root 
+          bg="var(--color-surface)" 
+          borderWidth="1px" 
+          borderColor="var(--color-border)"
+          cursor="pointer"
+          _hover={{ bg: "rgba(255,255,255,0.04)", transform: "translateY(-1px)" }}
+          transition="all 0.2s"
+          onClick={() => handleClick("/customerList")}
+        >
+          <CardBody>
+            <Flex align="center" justify="space-between">
+              <Flex direction="column">
+                <Text fontSize="sm" color="var(--color-muted)">Gesamte Nutzer</Text>
+                <Heading size="lg">{customerList.length}</Heading>
+                <Text fontSize="xs" color="var(--color-muted)" mt={1}>
+                  {countAffiliate} Affiliates • {countCustomer} Kunden
+                </Text>
+              </Flex>
+              <Icon as={FiUsers} color="blue.500" boxSize={6} />
+            </Flex>
+          </CardBody>
+        </Card.Root>
+
+        <Card.Root 
+          bg="var(--color-surface)" 
+          borderWidth="1px" 
+          borderColor="var(--color-border)"
+          cursor="pointer"
+          _hover={{ bg: "rgba(255,255,255,0.04)", transform: "translateY(-1px)" }}
+          transition="all 0.2s"
           onClick={() => handleClick("/survey/surveyAnswers")}
         >
-          <Flex justify="space-between" align="center" mb={3}>
-            <Text fontWeight="semibold">Umfragen</Text>
-            <Icon as={FcQuestions} />
-          </Flex>
-          <Progress.Root value={cRForCustomers ?? 0}>
-            <HStack>
-              <Progress.Label w="90px">Kunden</Progress.Label>
-              <Progress.Track flex="1">
+          <CardBody>
+            <Flex align="center" justify="space-between" mb={3}>
+              <Flex direction="column">
+                <Text fontSize="sm" color="var(--color-muted)">Umfragen</Text>
+                <Heading size="lg">{cRForCustomers ?? 0}%</Heading>
+              </Flex>
+              <Icon as={FiBarChart2} color="green.500" boxSize={6} />
+            </Flex>
+            <Progress.Root value={cRForCustomers ?? 0} colorScheme="green">
+              <Progress.Track>
                 <Progress.Range />
               </Progress.Track>
-              <Progress.ValueText>{cRForCustomers ?? 0}%</Progress.ValueText>
-            </HStack>
-          </Progress.Root>
-        </Box>
-      </Grid>
+            </Progress.Root>
+            <Text fontSize="xs" color="var(--color-muted)" mt={2}>
+              Antwortrate deiner Kunden
+            </Text>
+          </CardBody>
+        </Card.Root>
 
-      {/* Charts statt Kundenliste */}
-      <Box
-        p={5}
-        mx="auto"
-        borderRadius="2xl"
-        bg={cardBg}
-        borderWidth={1}
-        borderColor={borderCol}
-        shadow="sm"
+        <Card.Root 
+          bg="var(--color-surface)" 
+          borderWidth="1px" 
+          borderColor="var(--color-border)"
+        >
+          <CardBody>
+            <Flex align="center" justify="space-between">
+              <Flex direction="column">
+                <Text fontSize="sm" color="var(--color-muted)">Erfolgsrate</Text>
+                <Heading size="lg">
+                  {customerList.length > 0 ? 
+                    Math.round((customerList.filter(c => 
+                      (c?.flags?.filter((f:any) => f.color === "RED").length || 0) < 5
+                    ).length / customerList.length) * 100) : 0}%
+                </Heading>
+                <Text fontSize="xs" color="var(--color-muted)" mt={1}>
+                  Kunden ohne Risiko
+                </Text>
+              </Flex>
+              <Icon as={FiAward} color="yellow.500" boxSize={6} />
+            </Flex>
+          </CardBody>
+        </Card.Root>
+
+        <Card.Root 
+          bg="var(--color-surface)" 
+          borderWidth="1px" 
+          borderColor="var(--color-border)"
+        >
+          <CardBody>
+            <Flex align="center" justify="space-between">
+              <Flex direction="column">
+                <Text fontSize="sm" color="var(--color-muted)">Wachstum</Text>
+                <Heading size="lg">+{custSeries?.length || 0}</Heading>
+                <Text fontSize="xs" color="var(--color-muted)" mt={1}>
+                  Neue Kunden ({custDays}d)
+                </Text>
+              </Flex>
+              <Icon as={FiTrendingUp} color="purple.500" boxSize={6} />
+            </Flex>
+          </CardBody>
+        </Card.Root>
+      </SimpleGrid>
+
+      {/* Modern Chart Section */}
+      <Card.Root 
+        mb={8}
+        bg="var(--color-surface)"
+        borderWidth="1px"
+        borderColor="var(--color-border)"
       >
-        <Flex justify="space-between" align="center" flexWrap="wrap" gap={3} mb={4}>
-          <Box>
-            <Text fontSize="lg" fontWeight="semibold" color="blue.700">Kundenwachstum</Text>
-            <Text fontSize="xs" color="gray.600">Neue Kunden vs. kumulativ</Text>
-          </Box>
-          <Flex align="center" gap={2}>
-            <Text fontSize="xs" fontWeight="semibold" color="gray.600">Zeitraum</Text>
-            <SimpleSelect value={custDays} onChange={setCustDays} options={dayOptions} />
+        <CardHeader>
+          <Flex justify="space-between" align="center" flexWrap="wrap" gap={3}>
+            <VStack align="start" gap={0}>
+              <Heading size="md" color="var(--color-text)">Kundenwachstum</Heading>
+              <Text fontSize="sm" color="var(--color-muted)">Neue Kunden vs. kumulativ</Text>
+            </VStack>
+            <Flex align="center" gap={2}>
+              <Text fontSize="sm" fontWeight="medium" color="var(--color-muted)">Zeitraum:</Text>
+              <SimpleSelect value={custDays} onChange={setCustDays} options={dayOptions} />
+            </Flex>
           </Flex>
-        </Flex>
-
-        <Box height={320}>
-          {custLoading ? (
-            <Flex justify="center" align="center" h="100%"><Spinner size="sm" /></Flex>
-          ) : (
-            <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart data={custSeries} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="custNew" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#2563eb" stopOpacity={1} />
-                    <stop offset="95%" stopColor="#2563eb" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <XAxis dataKey="date" tick={{ fontSize: 12, fill: 'var(--color-muted)' }} tickLine={false} axisLine={false} />
-                <YAxis tick={{ fontSize: 12, fill: 'var(--color-muted)' }} tickLine={false} axisLine={false} />
-                <ReTooltip content={<GrowthTooltip />} cursor={{ stroke: 'rgba(255,255,255,0.12)', strokeWidth: 1 }} />
-                <Legend wrapperStyle={{ color: 'var(--color-muted)' }} iconType="plainline" formatter={(v: any) => <span style={{ color: 'var(--color-muted)' }}>{v}</span>} />
-                <Area type="monotone" dataKey="newCustomers" name="Neue Kunden" stroke="#2563eb" fillOpacity={0.35} fill="url(#custNew)" dot={false} activeDot={false} />
-                <Line type="monotone" dataKey="cumulative" name="Kumulativ" stroke="#8f95a1ff" dot={false} activeDot={false} />
-              </ComposedChart>
-            </ResponsiveContainer>
-          )}
-        </Box>
-      </Box>
+        </CardHeader>
+        <CardBody>
+          <Box height={320}>
+            {custLoading ? (
+              <Flex justify="center" align="center" h="100%">
+                <VStack gap={3}>
+                  <Spinner size="lg" color="blue.500" />
+                  <Text fontSize="sm" color="var(--color-muted)">Lade Wachstumsdaten...</Text>
+                </VStack>
+              </Flex>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <ComposedChart data={custSeries} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="custNew" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#6366f1" stopOpacity={0.8} />
+                      <stop offset="95%" stopColor="#6366f1" stopOpacity={0.1} />
+                    </linearGradient>
+                  </defs>
+                  <XAxis dataKey="date" tick={{ fontSize: 12, fill: 'var(--color-muted)' }} tickLine={false} axisLine={false} />
+                  <YAxis tick={{ fontSize: 12, fill: 'var(--color-muted)' }} tickLine={false} axisLine={false} />
+                  <ReTooltip content={<GrowthTooltip />} cursor={{ stroke: 'rgba(255,255,255,0.12)', strokeWidth: 1 }} />
+                  <Legend wrapperStyle={{ color: 'var(--color-muted)' }} iconType="plainline" formatter={(v: any) => <span style={{ color: 'var(--color-muted)' }}>{v}</span>} />
+                  <Area type="monotone" dataKey="newCustomers" name="Neue Kunden" stroke="#6366f1" fillOpacity={1} fill="url(#custNew)" dot={false} activeDot={{ r: 4, stroke: '#6366f1', strokeWidth: 2 }} />
+                  <Line type="monotone" dataKey="cumulative" name="Kumulativ" stroke="#10b981" strokeWidth={2} dot={false} activeDot={{ r: 4, stroke: '#10b981', strokeWidth: 2 }} />
+                </ComposedChart>
+              </ResponsiveContainer>
+            )}
+          </Box>
+        </CardBody>
+      </Card.Root>
 
       {/* Admin-only: Kundenliste des Coaches */}
       {isAdmin && !!userId && (
@@ -447,16 +550,107 @@ export default function DashboardCoach() {
       )}
 
       {/* Quick Actions */}
-      <Grid mt={8} templateColumns={{ base: '1fr', md: 'repeat(3, 1fr)' }} gap={5}>
-        <Box p={5} rounded="xl" borderWidth="1px" bg={cardBg} borderColor={borderCol} _hover={{ shadow: 'md' }} cursor="pointer" onClick={() => navigate('/customerList')}>
-          <Text fontWeight="semibold" mb={1}>Flaggen-Übersicht</Text>
-          <Text fontSize="sm" color="gray.600">Auffällige Kunden schnell finden</Text>
-        </Box>
-        <Box p={5} rounded="xl" borderWidth="1px" bg={cardBg} borderColor={borderCol} _hover={{ shadow: 'md' }} cursor="pointer" onClick={() => navigate('/survey/surveyAnswers')}>
-          <Text fontWeight="semibold" mb={1}>Umfragen</Text>
-          <Text fontSize="sm" color="gray.600">Antwortquoten und Details</Text>
-        </Box>
-      </Grid>
+      <Card.Root mb={6}>
+        <CardHeader>
+          <Heading size="md">Schnellzugriff</Heading>
+          <Text fontSize="sm" color="var(--color-muted)">
+            Häufig verwendete Funktionen für Coaches
+          </Text>
+        </CardHeader>
+        <CardBody>
+          <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} gap={4}>
+            <Card.Root 
+              cursor="pointer"
+              _hover={{ bg: "rgba(255,255,255,0.04)", transform: "translateY(-2px)" }}
+              transition="all 0.2s"
+              onClick={() => navigate('/customerList')}
+              bg="var(--color-surface)"
+              borderWidth="1px"
+              borderColor="var(--color-border)"
+            >
+              <CardBody p={5}>
+                <Flex align="center" gap={3} mb={2}>
+                  <Flex 
+                    w={10} h={10} 
+                    align="center" justify="center" 
+                    rounded="full" 
+                    bg="red.500"
+                    color="white"
+                  >
+                    <Icon as={FiTarget} boxSize={5} />
+                  </Flex>
+                  <VStack align="start" gap={0}>
+                    <Text fontWeight="semibold">Flaggen-Übersicht</Text>
+                    <Text fontSize="sm" color="var(--color-muted)">
+                      Auffällige Kunden schnell finden
+                    </Text>
+                  </VStack>
+                </Flex>
+              </CardBody>
+            </Card.Root>
+
+            <Card.Root 
+              cursor="pointer"
+              _hover={{ bg: "rgba(255,255,255,0.04)", transform: "translateY(-2px)" }}
+              transition="all 0.2s"
+              onClick={() => navigate('/survey/surveyAnswers')}
+              bg="var(--color-surface)"
+              borderWidth="1px"
+              borderColor="var(--color-border)"
+            >
+              <CardBody p={5}>
+                <Flex align="center" gap={3} mb={2}>
+                  <Flex 
+                    w={10} h={10} 
+                    align="center" justify="center" 
+                    rounded="full" 
+                    bg="green.500"
+                    color="white"
+                  >
+                    <Icon as={FiBarChart2} boxSize={5} />
+                  </Flex>
+                  <VStack align="start" gap={0}>
+                    <Text fontWeight="semibold">Umfragen</Text>
+                    <Text fontSize="sm" color="var(--color-muted)">
+                      Antwortquoten und Details einsehen
+                    </Text>
+                  </VStack>
+                </Flex>
+              </CardBody>
+            </Card.Root>
+
+            <Card.Root 
+              cursor="pointer"
+              _hover={{ bg: "rgba(255,255,255,0.04)", transform: "translateY(-2px)" }}
+              transition="all 0.2s"
+              onClick={() => navigate('/createUser')}
+              bg="var(--color-surface)"
+              borderWidth="1px"
+              borderColor="var(--color-border)"
+            >
+              <CardBody p={5}>
+                <Flex align="center" gap={3} mb={2}>
+                  <Flex 
+                    w={10} h={10} 
+                    align="center" justify="center" 
+                    rounded="full" 
+                    bg="blue.500"
+                    color="white"
+                  >
+                    <Icon as={FiUsers} boxSize={5} />
+                  </Flex>
+                  <VStack align="start" gap={0}>
+                    <Text fontWeight="semibold">Neuer Kunde</Text>
+                    <Text fontSize="sm" color="var(--color-muted)">
+                      Neuen Kunden hinzufügen
+                    </Text>
+                  </VStack>
+                </Flex>
+              </CardBody>
+            </Card.Root>
+          </SimpleGrid>
+        </CardBody>
+      </Card.Root>
     </Box>
   );
 }

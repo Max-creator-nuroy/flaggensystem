@@ -14,13 +14,19 @@ import {
   Text,
   Textarea,
   Input,
-  // Divider, // not available in current chakra build
-  // Select, // use native select
   Badge,
+  Card,
+  CardBody,
+  CardHeader,
+  Heading,
+  VStack,
+  HStack,
+  SimpleGrid,
 } from "@chakra-ui/react";
 import { useEffect, useMemo, useState } from "react";
 import { BsX } from "react-icons/bs";
 import { CgCheck } from "react-icons/cg";
+import { FiEdit3, FiClock, FiSettings, FiSend, FiEye } from "react-icons/fi";
 
 // Helper: humanize weekly cron like "m H * * d" into German day + HH:MM
 const DOW_DE = [
@@ -103,7 +109,6 @@ export default function CreateQuestions() {
         : `http://localhost:3000/question/getQuestionsByAdmin`;
 
     try {
-      toaster.create({ title: "Lade Fragen…", type: "loading" });
       const response = await fetch(url, {
         headers: {
           "Content-Type": "application/json",
@@ -112,7 +117,6 @@ export default function CreateQuestions() {
       });
       const data = await response.json();
       setQuestionList(data || []);
-      toaster.create({ title: "Fragen geladen", type: "success" });
     } catch (err) {
       console.error("Fehler beim Laden der Fragen", err);
       toaster.create({ title: "Fehler beim Laden", type: "error" });
@@ -144,7 +148,6 @@ export default function CreateQuestions() {
         : `http://localhost:3000/question/createAdminQuestion`;
 
     try {
-      toaster.create({ title: "Erstelle Frage…", type: "loading" });
       await fetch(url, {
         method: "POST",
         headers: {
@@ -252,89 +255,168 @@ export default function CreateQuestions() {
   );
 
   return (
-    <Box p={5}>
-      {/* Header */}
-      <Text fontSize="xl" fontWeight="bold" mb={4}>
-        Fragen Verwaltung
-      </Text>
-
-      {/* Create question form */}
-      <Box
-        bg="var(--color-surface)"
-        borderWidth="1px"
-        borderColor="var(--color-border)"
-        borderRadius="md"
-        p={4}
-        mb={6}
-      >
-        <Field.Root mb={3}>
-          <FieldLabel>Neue Frage</FieldLabel>
-          <Textarea
-            placeholder="Frage eingeben..."
-            maxW="600px"
-            value={question}
-            onChange={(e) => setQuestion(e.target.value)}
-          />
-        </Field.Root>
-        <Checkbox.Root
-          mt={3}
-          checked={isRating}
-          onChange={(e: any) => setIsRating(e.target.checked)}
-        >
-          <Checkbox.HiddenInput />
-          <Checkbox.Control />
-          <Checkbox.Label>Mit Rating beantworten (1–10)</Checkbox.Label>
-        </Checkbox.Root>
-        <Flex justifyContent="flex-end" mt={4}>
-          <Button onClick={submitQuestion} colorScheme="teal">
-            Frage anlegen
-          </Button>
-        </Flex>
-      </Box>
-
-      {/* Survey-like card with all active questions */}
-      <Box
-        bg="var(--color-surface)"
-        borderWidth="1px"
-        borderColor="var(--color-border)"
-        borderRadius="md"
-        p={4}
-        mb={6}
-      >
-        <Text fontSize="lg" fontWeight="semibold" mb={2}>
-          Vorschau: Umfrage mit aktuellen Fragen
-        </Text>
-        {loading ? (
-          <Spinner />
-        ) : (
-          <Grid templateColumns="repeat(auto-fill, minmax(280px, 1fr))" gap={4}>
-            {surveyLikeList.map((q: any) => (
-              <Box
-                key={q.id}
-                p={4}
-                borderWidth="1px"
-                borderColor="var(--color-border)"
-                borderRadius="md"
+    <VStack gap={6} align="stretch">
+      {/* Create Question Card */}
+      <Card.Root>
+        <CardHeader>
+          <Flex align="center" gap={3}>
+            <Flex 
+              w={10} h={10} 
+              align="center" justify="center" 
+              rounded="full" 
+              bg="purple.500"
+              color="white"
+            >
+              <Icon as={FiEdit3} boxSize={5} />
+            </Flex>
+            <VStack align="start" gap={0}>
+              <Heading size="md">Neue Frage erstellen</Heading>
+              <Text fontSize="sm" color="var(--color-muted)">
+                Füge Fragen zu deinem Fragenkatalog hinzu
+              </Text>
+            </VStack>
+          </Flex>
+        </CardHeader>
+        <CardBody>
+          <VStack gap={4} align="stretch">
+            <Field.Root>
+              <FieldLabel>Fragetext</FieldLabel>
+              <Textarea
+                placeholder="Wie war dein Tag heute? Was lief besonders gut?"
+                value={question}
+                onChange={(e) => setQuestion(e.target.value)}
                 bg="var(--color-surface)"
-              >
-                <Flex justifyContent="space-between" alignItems="center" mb={2}>
-                  <Text fontWeight="medium">
-                    {q.isRating ? "🔢 Rating" : "✏️ Text"}
-                  </Text>
-                  <IconButton
-                    size="sm"
-                    aria-label="Löschen"
-                    onClick={() => deleteQuestion(q.id)}
-                  >
-                    <Icon as={q.isDeleted ? CgCheck : BsX} />
-                  </IconButton>
+                borderColor="var(--color-border)"
+                _focus={{ borderColor: "purple.400" }}
+                rows={3}
+              />
+            </Field.Root>
+            
+            <Checkbox.Root
+              checked={isRating}
+              onChange={(e: any) => setIsRating(e.target.checked)}
+            >
+              <Checkbox.HiddenInput />
+              <Checkbox.Control />
+              <Checkbox.Label>
+                <Flex align="center" gap={2}>
+                  <Text>Mit Rating beantworten (1–10)</Text>
+                  <Badge colorScheme="blue" variant="subtle" size="sm">
+                    Zahlen-Bewertung
+                  </Badge>
                 </Flex>
-                <Text>{q.text}</Text>
-              </Box>
-            ))}
-          </Grid>
-        )}
-      </Box>
+              </Checkbox.Label>
+            </Checkbox.Root>
+            
+            <Flex justify="flex-end" gap={3}>
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setQuestion("");
+                  setIsRating(false);
+                }}
+              >
+                Zurücksetzen
+              </Button>
+              <Button 
+                onClick={submitQuestion} 
+                colorScheme="purple"
+                disabled={!question.trim()}
+              >
+                <Icon as={FiEdit3} mr={2} />
+                Frage erstellen
+              </Button>
+            </Flex>
+          </VStack>
+        </CardBody>
+      </Card.Root>
+
+      {/* Questions Preview */}
+      <Card.Root>
+        <CardHeader>
+          <Flex align="center" justify="space-between">
+            <Flex align="center" gap={3}>
+              <Flex 
+                w={10} h={10} 
+                align="center" justify="center" 
+                rounded="full" 
+                bg="green.500"
+                color="white"
+              >
+                <Icon as={FiEye} boxSize={5} />
+              </Flex>
+              <VStack align="start" gap={0}>
+                <Heading size="md">Fragenkatalog Vorschau</Heading>
+                <Text fontSize="sm" color="var(--color-muted)">
+                  {surveyLikeList.length} aktive Fragen verfügbar
+                </Text>
+              </VStack>
+            </Flex>
+            <Badge colorScheme="green" variant="subtle">
+              {surveyLikeList.length} Fragen
+            </Badge>
+          </Flex>
+        </CardHeader>
+        <CardBody>
+          {loading ? (
+            <Flex justify="center" align="center" py={8}>
+              <VStack gap={3}>
+                <Spinner size="lg" color="green.500" />
+                <Text fontSize="sm" color="var(--color-muted)">Lade Fragen...</Text>
+              </VStack>
+            </Flex>
+          ) : surveyLikeList.length === 0 ? (
+            <Flex justify="center" align="center" py={8}>
+              <VStack gap={3}>
+                <Icon as={FiEdit3} boxSize={12} color="var(--color-muted)" />
+                <Text fontSize="lg" fontWeight="medium" color="var(--color-muted)">
+                  Noch keine Fragen erstellt
+                </Text>
+                <Text fontSize="sm" color="var(--color-muted)" textAlign="center">
+                  Erstelle deine erste Frage mit dem Formular oben
+                </Text>
+              </VStack>
+            </Flex>
+          ) : (
+            <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} gap={4}>
+              {surveyLikeList.map((q: any) => (
+                <Card.Root
+                  key={q.id}
+                  bg="var(--color-surface)"
+                  borderWidth="1px"
+                  borderColor="var(--color-border)"
+                  _hover={{ borderColor: q.isRating ? "blue.300" : "green.300" }}
+                  transition="all 0.2s"
+                >
+                  <CardBody p={4}>
+                    <Flex justify="space-between" align="start" mb={3}>
+                      <Badge 
+                        colorScheme={q.isRating ? "blue" : "green"} 
+                        variant="subtle"
+                        size="sm"
+                      >
+                        {q.isRating ? "Rating 1-10" : "Text-Antwort"}
+                      </Badge>
+                      <IconButton
+                        size="sm"
+                        variant="ghost"
+                        colorScheme="red"
+                        aria-label="Frage löschen"
+                        onClick={() => deleteQuestion(q.id)}
+                      >
+                        <Icon as={BsX} />
+                      </IconButton>
+                    </Flex>
+                    <Text fontWeight="medium" lineHeight="1.4">
+                      {q.text}
+                    </Text>
+                  </CardBody>
+                </Card.Root>
+              ))}
+            </SimpleGrid>
+          )}
+        </CardBody>
+      </Card.Root>
 
       {/* Schedule configuration for Admin */}
       {coach.role === "ADMIN" && (
@@ -727,6 +809,6 @@ export default function CreateQuestions() {
           </Box>
         </Box>
       )}
-    </Box>
+    </VStack>
   );
 }

@@ -60,6 +60,7 @@ export const router = createBrowserRouter([
           { path: "flagList", element: <FlagList /> },
           { path: "customerFlags", element: <CustomerFlags /> },
           { path: "survey", element: <CurrentSurvey /> },
+          { path: "leadList", element: <LeadList /> },
         ],
       },
       {
@@ -71,6 +72,7 @@ export const router = createBrowserRouter([
           { path: "inbox/coach", element: <CoachInbox /> },
           { path: "flagList", element: <FlagList /> },
           { path: "customerFlags", element: <CustomerFlags /> },
+          { path: "leadList", element: <LeadList /> },
           {
             path: "survey",
             element: <Survey />,

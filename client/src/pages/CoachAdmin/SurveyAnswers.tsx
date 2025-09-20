@@ -18,12 +18,18 @@ import {
   createListCollection,
   Button,
   Dialog,
+  VStack,
+  HStack,
+  Icon,
+  SimpleGrid,
 } from "@chakra-ui/react";
 import { Portal } from "@chakra-ui/react";
-import { BsStar } from "react-icons/bs";
+import { BsStar, BsStarFill } from "react-icons/bs";
 import { CgCopy } from "react-icons/cg";
+import { FiBarChart2, FiFilter, FiStar, FiCalendar, FiUser, FiMessageSquare } from "react-icons/fi";
 import getUserFromToken from "@/services/getTokenFromLokal";
 import { useColorModeValue } from "@/components/ui/color-mode";
+import { toaster } from "@/components/ui/toaster";
 
 type TimeFilter = "THIS_WEEK" | "LAST_WEEK" | "CUSTOM";
 type GroupMode = "BY_USER" | "BY_DATE" | "FLAT_SURVEYS";
@@ -209,6 +215,11 @@ export default function SurveyAnswers() {
 
   const copy = (text: string) => {
     navigator.clipboard.writeText(text);
+    toaster.create({
+      title: "Kopiert!",
+      description: "Antwort wurde in die Zwischenablage kopiert",
+      type: "success",
+    });
   };
 
   // Gruppierungen vorbereiten
@@ -242,215 +253,374 @@ export default function SurveyAnswers() {
   }, [searchedSurveys, groupMode]);
 
   return (
-    <Flex alignItems="flex-start" p={0} gap={0} minH="calc(100vh - 80px)">
-      {/* Sidebar */}
-      <Box w={{ base: "100%", md: "280px" }} borderRight={{ md: "1px solid" }} borderColor={borderCol} p={6} position="sticky" top={0} maxH="100vh" overflowY="auto" bg="var(--color-surface)">
-        <Heading size="md" mb={1}>Umfragen</Heading>
-        <Text fontSize="sm" color="gray.500" mb={4}>{coach.role === "COACH" ? "Coach-Ansicht" : "Admin-Ansicht"}</Text>
-        <Stack gap={4}>
-          <Box>
-            <Text fontSize="sm" fontWeight="semibold" mb={1}>Zeitraum</Text>
-            <Select.Root
-              collection={timeFilters}
-              value={[timeFilter]}
-              onValueChange={({ value: [val] }) => {
-                setTimeFilter(val as TimeFilter);
-                localStorage.setItem("timeFilter", val as string);
-              }}
+    <Box maxW="7xl" mx="auto" px={{ base: 3, md: 6 }} py={6}>
+      {/* Header */}
+      <Card.Root mb={6}>
+        <CardHeader>
+          <Flex align="center" gap={3}>
+            <Flex 
+              w={12} h={12} 
+              align="center" justify="center" 
+              rounded="full" 
+              bg="green.500"
+              color="white"
             >
-              <Select.HiddenSelect name="timeFilter" />
-              <Select.Trigger>
-                <Select.ValueText />
-              </Select.Trigger>
-              <Portal>
-                <Select.Positioner>
-                  <Select.Content>
-                    {timeFilters.items.map((item) => (
-                      <Select.Item key={item.value} item={item}>
-                        {item.label}
-                        <Select.ItemIndicator />
-                      </Select.Item>
-                    ))}
-                  </Select.Content>
-                </Select.Positioner>
-              </Portal>
-            </Select.Root>
-            {timeFilter === "CUSTOM" && (
-              <Stack mt={2} gap={2}>
-                <Input
-                  size="sm"
-                  type="date"
-                  value={customFrom}
-                  onChange={(e) => {
-                    setCustomFrom(e.target.value);
-                    localStorage.setItem("timeFilterFrom", e.target.value);
-                  }}
-                />
-                <Input
-                  size="sm"
-                  type="date"
-                  value={customTo}
-                  onChange={(e) => {
-                    setCustomTo(e.target.value);
-                    localStorage.setItem("timeFilterTo", e.target.value);
-                  }}
-                />
-              </Stack>
-            )}
-          </Box>
-          <Box>
-            <Text fontSize="sm" fontWeight="semibold" mb={1}>Gruppierung</Text>
-            <Select.Root
-              collection={createListCollection({
-                items: [
-                  { label: "Nach Nutzer", value: "BY_USER" },
-                  { label: "Nach Datum", value: "BY_DATE" },
-                  { label: "Alle Surveys", value: "FLAT_SURVEYS" },
-                ],
-              })}
-              value={[groupMode]}
-              onValueChange={({ value: [val] }) => {
-                setGroupMode(val as GroupMode);
-                localStorage.setItem("surveyGroupMode", val as string);
-              }}
-            >
-              <Select.HiddenSelect name="groupMode" />
-              <Select.Trigger>
-                <Select.ValueText />
-              </Select.Trigger>
-              <Portal>
-                <Select.Positioner>
-                  <Select.Content>
-                    <Select.Item item={{ label: "Nach Nutzer", value: "BY_USER" }}>Nach Nutzer<Select.ItemIndicator/></Select.Item>
-                    <Select.Item item={{ label: "Nach Datum", value: "BY_DATE" }}>Nach Datum<Select.ItemIndicator/></Select.Item>
-                    <Select.Item item={{ label: "Alle Surveys", value: "FLAT_SURVEYS" }}>Alle Surveys<Select.ItemIndicator/></Select.Item>
-                  </Select.Content>
-                </Select.Positioner>
-              </Portal>
-            </Select.Root>
-          </Box>
-          <Box>
-            <Text fontSize="sm" fontWeight="semibold" mb={1}>Suche</Text>
-            <Input
-              size="sm"
-              placeholder="Name / Frage / Antwort"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </Box>
-          <Box>
-            <Button
-              size="sm"
-              variant="outline"
-              w="100%"
-              onClick={() => setFavoritesOpen(true)}
-            >
-              Favoriten ansehen ({favoriteQuestions.length})
-            </Button>
-          </Box>
-        </Stack>
-      </Box>
-
-      {/* Main Content */}
-      <Box flex="1" p={6} overflowX="hidden">
-        {loading ? (
-          <Flex justify="center" mt={20}><Spinner /></Flex>
-        ) : searchedSurveys.length === 0 ? (
-          <Text mt={10}>Keine Umfragen gefunden.</Text>
-        ) : groupMode === "BY_USER" ? (
-          <Stack gap={8}>
-            {groupedByUser.map(({ user, surveys }) => (
-              <Box key={user.id}>
-                <Heading size="sm" mb={3}>
-                  {user.name} {user.last_name}{" "}
-                  <Badge
-                    ml={2}
-                    bg="var(--color-surface)"
-                    borderWidth="1px"
-                    borderColor="var(--color-border)"
-                    color="var(--color-text)"
-                    rounded="sm"
-                  >
-                    {surveys.length}
-                  </Badge>
-                </Heading>
-                <Flex gap={4} wrap="wrap">
-                  {surveys.map((s) => (
-                    <SurveyCard
-                      key={s.id}
-                      survey={s}
-                      borderCol={borderCol}
-                      favorites={favorites}
-                      toggleFavorite={toggleFavorite}
-                      copy={copy}
-                    />
-                  ))}
-                </Flex>
-              </Box>
-            ))}
-          </Stack>
-        ) : groupMode === "BY_DATE" ? (
-          <Stack gap={10}>
-            {groupedByDate.map(({ date, surveys }) => (
-              <Box key={date}>
-                <Heading size="sm" mb={3}>
-                  {date}{" "}
-                  <Badge
-                    ml={2}
-                    bg="var(--color-surface)"
-                    borderWidth="1px"
-                    borderColor="var(--color-border)"
-                    color="var(--color-text)"
-                    rounded="sm"
-                  >
-                    {surveys.length}
-                  </Badge>
-                </Heading>
-                <Flex gap={4} wrap="wrap">
-                  {surveys.map((s) => (
-                    <SurveyCard
-                      key={s.id}
-                      survey={s}
-                      borderCol={borderCol}
-                      favorites={favorites}
-                      toggleFavorite={toggleFavorite}
-                      copy={copy}
-                    />
-                  ))}
-                </Flex>
-              </Box>
-            ))}
-          </Stack>
-        ) : (
-          <Flex gap={4} wrap="wrap">
-            {flatSurveys.map((s) => (
-              <SurveyCard
-                key={s.id}
-                survey={s}
-                borderCol={borderCol}
-                favorites={favorites}
-                toggleFavorite={toggleFavorite}
-                copy={copy}
-              />
-            ))}
+              <Icon as={FiBarChart2} boxSize={6} />
+            </Flex>
+            <VStack align="start" gap={0}>
+              <Heading size="lg">Umfragen-Auswertung</Heading>
+              <Text color="var(--color-muted)" fontSize="sm">
+                {coach.role === "COACH" ? "Antworten deiner Kunden" : "Alle Coach-Umfragen"}
+              </Text>
+            </VStack>
           </Flex>
-        )}
-      </Box>
+        </CardHeader>
+      </Card.Root>
+
+      <Flex gap={6} direction={{ base: "column", lg: "row" }} align="flex-start">
+        {/* Sidebar */}
+        <Card.Root w={{ base: "100%", lg: "320px" }} flexShrink={0} position="sticky" top={6}>
+          <CardHeader>
+            <Flex align="center" gap={2}>
+              <Icon as={FiFilter} color="green.500" />
+              <Heading size="md">Filter & Suche</Heading>
+            </Flex>
+          </CardHeader>
+          <CardBody>
+            <VStack gap={6} align="stretch">
+              <VStack gap={1} align="stretch">
+                <Flex align="center" gap={2}>
+                  <Icon as={FiCalendar} color="blue.500" boxSize={4} />
+                  <Text fontSize="sm" fontWeight="semibold">Zeitraum</Text>
+                </Flex>
+                <Select.Root
+                  collection={timeFilters}
+                  value={[timeFilter]}
+                  onValueChange={({ value: [val] }) => {
+                    setTimeFilter(val as TimeFilter);
+                    localStorage.setItem("timeFilter", val as string);
+                  }}
+                >
+                  <Select.HiddenSelect name="timeFilter" />
+                  <Select.Trigger>
+                    <Select.ValueText />
+                  </Select.Trigger>
+                  <Portal>
+                    <Select.Positioner>
+                      <Select.Content>
+                        {timeFilters.items.map((item) => (
+                          <Select.Item key={item.value} item={item}>
+                            {item.label}
+                            <Select.ItemIndicator />
+                          </Select.Item>
+                        ))}
+                      </Select.Content>
+                    </Select.Positioner>
+                  </Portal>
+                </Select.Root>
+                {timeFilter === "CUSTOM" && (
+                  <VStack gap={2} mt={2}>
+                    <Input
+                      size="sm"
+                      type="date"
+                      value={customFrom}
+                      onChange={(e) => {
+                        setCustomFrom(e.target.value);
+                        localStorage.setItem("timeFilterFrom", e.target.value);
+                      }}
+                      placeholder="Von"
+                    />
+                    <Input
+                      size="sm"
+                      type="date"
+                      value={customTo}
+                      onChange={(e) => {
+                        setCustomTo(e.target.value);
+                        localStorage.setItem("timeFilterTo", e.target.value);
+                      }}
+                      placeholder="Bis"
+                    />
+                  </VStack>
+                )}
+              </VStack>
+
+              <VStack gap={1} align="stretch">
+                <Flex align="center" gap={2}>
+                  <Icon as={FiUser} color="purple.500" boxSize={4} />
+                  <Text fontSize="sm" fontWeight="semibold">Gruppierung</Text>
+                </Flex>
+                <Select.Root
+                  collection={createListCollection({
+                    items: [
+                      { label: "Nach Nutzer", value: "BY_USER" },
+                      { label: "Nach Datum", value: "BY_DATE" },
+                      { label: "Alle Surveys", value: "FLAT_SURVEYS" },
+                    ],
+                  })}
+                  value={[groupMode]}
+                  onValueChange={({ value: [val] }) => {
+                    setGroupMode(val as GroupMode);
+                    localStorage.setItem("surveyGroupMode", val as string);
+                  }}
+                >
+                  <Select.HiddenSelect name="groupMode" />
+                  <Select.Trigger>
+                    <Select.ValueText />
+                  </Select.Trigger>
+                  <Portal>
+                    <Select.Positioner>
+                      <Select.Content>
+                        <Select.Item item={{ label: "Nach Nutzer", value: "BY_USER" }}>Nach Nutzer<Select.ItemIndicator/></Select.Item>
+                        <Select.Item item={{ label: "Nach Datum", value: "BY_DATE" }}>Nach Datum<Select.ItemIndicator/></Select.Item>
+                        <Select.Item item={{ label: "Alle Surveys", value: "FLAT_SURVEYS" }}>Alle Surveys<Select.ItemIndicator/></Select.Item>
+                      </Select.Content>
+                    </Select.Positioner>
+                  </Portal>
+                </Select.Root>
+              </VStack>
+
+              <VStack gap={1} align="stretch">
+                <Flex align="center" gap={2}>
+                  <Icon as={FiMessageSquare} color="orange.500" boxSize={4} />
+                  <Text fontSize="sm" fontWeight="semibold">Suche</Text>
+                </Flex>
+                <Input
+                  placeholder="Name / Frage / Antwort"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  bg="var(--color-surface)"
+                  borderColor="var(--color-border)"
+                />
+              </VStack>
+
+              <Card.Root bg="rgba(255, 215, 0, 0.1)" borderColor="yellow.300">
+                <CardBody p={3}>
+                  <Flex align="center" justify="space-between" mb={2}>
+                    <Flex align="center" gap={2}>
+                      <Icon as={FiStar} color="yellow.500" boxSize={4} />
+                      <Text fontSize="sm" fontWeight="semibold">Favoriten</Text>
+                    </Flex>
+                    <Badge colorScheme="yellow" variant="subtle">
+                      {favoriteQuestions.length}
+                    </Badge>
+                  </Flex>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    w="100%"
+                    onClick={() => setFavoritesOpen(true)}
+                    colorScheme="yellow"
+                  >
+                    Favoriten ansehen
+                  </Button>
+                </CardBody>
+              </Card.Root>
+            </VStack>
+          </CardBody>
+        </Card.Root>
+
+        {/* Main Content */}
+        <Box flex="1">
+          {loading ? (
+            <Card.Root>
+              <CardBody>
+                <Flex justify="center" align="center" py={12}>
+                  <VStack gap={4}>
+                    <Spinner size="lg" color="green.500" />
+                    <Text fontSize="sm" color="var(--color-muted)">
+                      Lade Umfragen...
+                    </Text>
+                  </VStack>
+                </Flex>
+              </CardBody>
+            </Card.Root>
+          ) : searchedSurveys.length === 0 ? (
+            <Card.Root>
+              <CardBody>
+                <Flex justify="center" align="center" py={12}>
+                  <VStack gap={4}>
+                    <Icon as={FiBarChart2} boxSize={16} color="var(--color-muted)" />
+                    <Heading size="md" color="var(--color-muted)">
+                      Keine Umfragen gefunden
+                    </Heading>
+                    <Text fontSize="sm" color="var(--color-muted)" textAlign="center">
+                      Keine Umfragen entsprechen den aktuellen Filterkriterien.
+                      Passe deine Filter an oder erstelle neue Umfragen.
+                    </Text>
+                  </VStack>
+                </Flex>
+              </CardBody>
+            </Card.Root>
+          ) : groupMode === "BY_USER" ? (
+            <VStack gap={6} align="stretch">
+              {groupedByUser.map(({ user, surveys }) => (
+                <Card.Root key={user.id}>
+                  <CardHeader>
+                    <Flex align="center" justify="space-between">
+                      <Flex align="center" gap={3}>
+                        <Flex 
+                          w={8} h={8} 
+                          align="center" justify="center" 
+                          rounded="full" 
+                          bg="blue.500"
+                          color="white"
+                          fontSize="sm"
+                          fontWeight="bold"
+                        >
+                          {user.name.charAt(0)}{user.last_name.charAt(0)}
+                        </Flex>
+                        <VStack align="start" gap={0}>
+                          <Heading size="sm">{user.name} {user.last_name}</Heading>
+                          <Text fontSize="xs" color="var(--color-muted)">
+                            {surveys.length} Umfrage{surveys.length !== 1 ? 'n' : ''}
+                          </Text>
+                        </VStack>
+                      </Flex>
+                      <Badge colorScheme="blue" variant="subtle">
+                        {surveys.length}
+                      </Badge>
+                    </Flex>
+                  </CardHeader>
+                  <CardBody>
+                    <SimpleGrid columns={{ base: 1, md: 2, xl: 3 }} gap={4}>
+                      {surveys.map((s) => (
+                        <SurveyCard
+                          key={s.id}
+                          survey={s}
+                          borderCol={borderCol}
+                          favorites={favorites}
+                          toggleFavorite={toggleFavorite}
+                          copy={copy}
+                        />
+                      ))}
+                    </SimpleGrid>
+                  </CardBody>
+                </Card.Root>
+              ))}
+            </VStack>
+          ) : groupMode === "BY_DATE" ? (
+            <VStack gap={6} align="stretch">
+              {groupedByDate.map(({ date, surveys }) => (
+                <Card.Root key={date}>
+                  <CardHeader>
+                    <Flex align="center" justify="space-between">
+                      <Flex align="center" gap={3}>
+                        <Flex 
+                          w={8} h={8} 
+                          align="center" justify="center" 
+                          rounded="full" 
+                          bg="purple.500"
+                          color="white"
+                        >
+                          <Icon as={FiCalendar} boxSize={4} />
+                        </Flex>
+                        <VStack align="start" gap={0}>
+                          <Heading size="sm">{date}</Heading>
+                          <Text fontSize="xs" color="var(--color-muted)">
+                            {surveys.length} Umfrage{surveys.length !== 1 ? 'n' : ''}
+                          </Text>
+                        </VStack>
+                      </Flex>
+                      <Badge colorScheme="purple" variant="subtle">
+                        {surveys.length}
+                      </Badge>
+                    </Flex>
+                  </CardHeader>
+                  <CardBody>
+                    <SimpleGrid columns={{ base: 1, md: 2, xl: 3 }} gap={4}>
+                      {surveys.map((s) => (
+                        <SurveyCard
+                          key={s.id}
+                          survey={s}
+                          borderCol={borderCol}
+                          favorites={favorites}
+                          toggleFavorite={toggleFavorite}
+                          copy={copy}
+                        />
+                      ))}
+                    </SimpleGrid>
+                  </CardBody>
+                </Card.Root>
+              ))}
+            </VStack>
+          ) : (
+            <Card.Root>
+              <CardHeader>
+                <Flex align="center" gap={3}>
+                  <Icon as={FiBarChart2} color="green.500" />
+                  <Heading size="sm">Alle Umfragen</Heading>
+                  <Badge colorScheme="green" variant="subtle">
+                    {flatSurveys.length}
+                  </Badge>
+                </Flex>
+              </CardHeader>
+              <CardBody>
+                <SimpleGrid columns={{ base: 1, md: 2, xl: 3 }} gap={4}>
+                  {flatSurveys.map((s) => (
+                    <SurveyCard
+                      key={s.id}
+                      survey={s}
+                      borderCol={borderCol}
+                      favorites={favorites}
+                      toggleFavorite={toggleFavorite}
+                      copy={copy}
+                    />
+                  ))}
+                </SimpleGrid>
+              </CardBody>
+            </Card.Root>
+          )}
+        </Box>
+      </Flex>
 
       {/* Favorites Dialog */}
       <Dialog.Root open={favoritesOpen} onOpenChange={(e) => setFavoritesOpen(e.open)}>
         <Dialog.Backdrop />
         <Dialog.Positioner>
-          <Dialog.Content bg="var(--color-surface)" borderWidth="1px" borderColor="var(--color-border)" zIndex={1400} w="xl" maxW="90vw">
+          <Dialog.Content 
+            bg="var(--color-surface)" 
+            borderWidth="1px" 
+            borderColor="var(--color-border)" 
+            zIndex={1400} 
+            w="2xl" 
+            maxW="90vw"
+            borderRadius="lg"
+          >
             <Dialog.Header>
-              <Dialog.Title>Favoriten ({favoriteQuestions.length})</Dialog.Title>
+              <Flex align="center" gap={3}>
+                <Flex 
+                  w={8} h={8} 
+                  align="center" justify="center" 
+                  rounded="full" 
+                  bg="yellow.500"
+                  color="white"
+                >
+                  <Icon as={FiStar} boxSize={4} />
+                </Flex>
+                <VStack align="start" gap={0}>
+                  <Dialog.Title>Favoriten</Dialog.Title>
+                  <Text fontSize="sm" color="var(--color-muted)">
+                    {favoriteQuestions.length} markierte Fragen
+                  </Text>
+                </VStack>
+              </Flex>
             </Dialog.Header>
             <Dialog.CloseTrigger />
             <Dialog.Body maxH="70vh" overflowY="auto">
               {favoriteQuestions.length === 0 ? (
-                <Text color="gray.500">Keine Favoriten vorhanden.</Text>
+                <Flex justify="center" align="center" py={8}>
+                  <VStack gap={3}>
+                    <Icon as={FiStar} boxSize={12} color="var(--color-muted)" />
+                    <Text color="var(--color-muted)" fontWeight="medium">
+                      Keine Favoriten vorhanden
+                    </Text>
+                    <Text fontSize="sm" color="var(--color-muted)" textAlign="center">
+                      Markiere Fragen mit dem Stern-Icon, um sie hier zu sammeln
+                    </Text>
+                  </VStack>
+                </Flex>
               ) : (
-                <Stack gap={3}>
+                <VStack gap={3} align="stretch">
                   {favoriteQuestions.map(({ q, user }) => (
                     <QuestionItem
                       key={q.id}
@@ -462,18 +632,19 @@ export default function SurveyAnswers() {
                       isFav={true}
                     />
                   ))}
-                </Stack>
+                </VStack>
               )}
             </Dialog.Body>
           </Dialog.Content>
         </Dialog.Positioner>
       </Dialog.Root>
-    </Flex>
+    </Box>
   );
 }
 
 function QuestionItem({
   q,
+  user,
   onToggle,
   onCopy,
   isFav,
@@ -496,13 +667,16 @@ function QuestionItem({
     }
   }
 
-  const answerCol = useColorModeValue("gray.300", "gray.400");
+  const answerCol = useColorModeValue("gray.700", "gray.200");
 
   return (
     <Box py={4} borderBottom="1px solid" borderColor={borderCol}>
       <Flex justify="space-between" align="start" gap={3}>
         <Box flex="1">
           <Text fontWeight="bold">{q.question.text}</Text>
+          <Text fontSize="sm" color="gray.500" mt={1}>
+            {user.name} {user.last_name}
+          </Text>
           {isRatingQuestion ? (
             <Text mt={2} color={answerCol}>{displayRating !== null ? displayRating : "—"}</Text>
           ) : (
@@ -518,10 +692,10 @@ function QuestionItem({
           <IconButton
             size="sm"
             aria-label="Favorit"
-            variant={isFav ? "solid" : "outline"}
+            variant="outline"
             onClick={onToggle}
           >
-            <BsStar />
+            {isFav ? <BsStarFill color="gold" /> : <BsStar />}
           </IconButton>
         </Flex>
       </Flex>

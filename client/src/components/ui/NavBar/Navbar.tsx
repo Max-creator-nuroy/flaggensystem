@@ -10,6 +10,7 @@ import { CgProfile } from "react-icons/cg";
 import { Link } from "react-router-dom";
 import getUserFromToken from "@/services/getTokenFromLokal";
 import { useLayoutEffect, useRef } from "react";
+import NotificationBell from "../NotificationBell";
 
 export default function Navbar() {
   const token = localStorage.getItem("token");
@@ -46,6 +47,7 @@ export default function Navbar() {
       <Text>
         {user?.name} {user?.last_name}
       </Text>
+      <NotificationBell />
       <Link to="/profilePage" style={{ textDecoration: "none" }}>
         <Button colorScheme="blue" bg="none">
           <Icon as={CgProfile}></Icon>

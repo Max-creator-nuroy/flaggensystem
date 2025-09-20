@@ -1,6 +1,36 @@
 import { useEffect, useState, useMemo } from "react";
-import { Box, Flex, Text, Button, Table, Spinner } from "@chakra-ui/react";
+import { 
+  Box, 
+  Flex, 
+  Text, 
+  Button, 
+  Table, 
+  Spinner,
+  Card,
+  CardHeader,
+  CardBody,
+  Icon,
+  VStack,
+  HStack,
+  Heading,
+  SimpleGrid,
+  Badge,
+  Dialog,
+  Portal
+} from "@chakra-ui/react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import {
+  FiBarChart,
+  FiUsers,
+  FiTrendingUp,
+  FiTarget,
+  FiRefreshCw,
+  FiUser,
+  FiMail,
+  FiPhone,
+  FiFlag,
+  FiSettings
+} from "react-icons/fi";
 import {
   ComposedChart,
   Area,
@@ -78,36 +108,6 @@ type CoachSortKey = "name" | "email" | "mobile" | "yellow" | "red" | "total";
 
 const dayOptions = [7, 14, 30, 90];
 
-const selectStyle: React.CSSProperties = {
-  padding: "4px 8px",
-  borderRadius: "6px",
-  border: "1px solid var(--color-border)",
-  background: "var(--color-surface)",
-  color: "var(--color-text)",
-  fontSize: "0.8rem",
-};
-const SimpleSelect = ({
-  value,
-  onChange,
-  options,
-}: {
-  value: number;
-  onChange: (v: number) => void;
-  options: number[];
-}) => (
-  <select
-    value={value}
-    onChange={(e) => onChange(parseInt(e.target.value))}
-    style={selectStyle}
-  >
-    {options.map((o) => (
-      <option key={o} value={o}>
-        {o} Tage
-      </option>
-    ))}
-  </select>
-);
-
 export function AdminAnalytics() {
   const token = localStorage.getItem("token");
   const headers = {
@@ -151,6 +151,7 @@ export function AdminAnalytics() {
     key: CoachSortKey;
     dir: "asc" | "desc";
   }>({ key: "total", dir: "desc" });
+
 
   const fetchGrowth = async () => {
     setGrowthLoading(true);
@@ -278,15 +279,22 @@ export function AdminAnalytics() {
   useEffect(() => {
     fetchTotalCustomersAll();
   }, []);
+  const sortedFlagsCoach = useMemo(
+    () => [...flagsCoachData].sort((a, b) => b.total - a.total),
+    [flagsCoachData]
+  );
+
   // New: refetch multi-coach series when coach list or range changes
   useEffect(() => {
     fetchCoachGrowthAll();
   }, [flagsCoachData, daysGrowth]);
 
-  const sortedFlagsCoach = useMemo(
-    () => [...flagsCoachData].sort((a, b) => b.total - a.total),
-    [flagsCoachData]
-  );
+  // Auto-select first coach if no coach is selected and coaches are available
+  useEffect(() => {
+    if (!selectedCoachId && sortedFlagsCoach.length > 0) {
+      setSelectedCoachId(sortedFlagsCoach[0].coachId);
+    }
+  }, [selectedCoachId, sortedFlagsCoach]);
   // (Removed flags chart; keep reqFlagsData only for potential KPI extensions)
   // const sortedFailures = useMemo(
   //   () => [...failureData].sort((a, b) => b.failures - a.failures),
@@ -441,52 +449,26 @@ export function AdminAnalytics() {
     label: string,
     value: string | number,
     sub?: string,
-    color?: string
+    color?: string,
+    icon?: any
   ) => (
-    <Box
+    <Card.Root
       key={label}
-      p={4}
-      rounded="lg"
+      bg="var(--color-surface)"
       borderWidth="1px"
       borderColor="var(--color-border)"
-      bg="linear-gradient(135deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.03) 100%)"
-      backdropFilter="blur(6px)"
-      shadow="xs"
-      position="relative"
-      overflow="hidden"
     >
-      <Text
-        fontSize="xs"
-        fontWeight="medium"
-        color="var(--color-muted)"
-        textTransform="uppercase"
-        letterSpacing="0.5px"
-      >
-        {label}
-      </Text>
-      <Text
-        fontSize="2xl"
-        fontWeight="bold"
-        lineHeight="1.1"
-        color={color || "var(--color-text)"}
-      >
-        {value}
-      </Text>
-      {sub && (
-        <Text fontSize="xs" color="var(--color-muted)" mt={1}>
-          {sub}
-        </Text>
-      )}
-      <Box
-        position="absolute"
-        right="-16px"
-        top="-16px"
-        w="70px"
-        h="70px"
-        rounded="full"
-        bg="whiteAlpha.100"
-      />
-    </Box>
+      <CardBody>
+        <Flex align="center" justify="space-between">
+          <VStack align="start" gap={1}>
+            <Text fontSize="sm" color="var(--color-muted)">{label}</Text>
+            <Heading size="lg" color={color || "var(--color-text)"}>{value}</Heading>
+            {sub && <Text fontSize="xs" color="var(--color-muted)">{sub}</Text>}
+          </VStack>
+          {icon && <Icon as={icon} color={color || "blue.500"} boxSize={6} />}
+        </Flex>
+      </CardBody>
+    </Card.Root>
   );
 
   // Custom dark tooltip for multi-coach chart
@@ -523,87 +505,118 @@ export function AdminAnalytics() {
   };
 
   return (
-    <Flex
-      direction="column"
-      gap={8}
-      maxW="7xl"
-      mx="auto"
-      w="100%"
-      px={{ base: 3, md: 6 }}
-      py={6}
-    >
-      {/* KPI Row */}
-      <Flex gap={4} wrap="wrap">
+    <Box maxW="7xl" mx="auto" px={{ base: 3, md: 6 }} py={6}>
+      {/* Header */}
+      <Card.Root mb={6}>
+        <CardHeader>
+          <Flex align="center" gap={3}>
+            <Flex 
+              w={12} h={12} 
+              align="center" justify="center" 
+              rounded="full" 
+              bg="purple.500"
+              color="white"
+            >
+              <Icon as={FiBarChart} boxSize={6} />
+            </Flex>
+            <VStack align="start" gap={0}>
+              <Heading size="lg">Admin Statistiken</Heading>
+              <Text color="var(--color-muted)" fontSize="sm">
+                Übersicht und Analyse der Systemdaten
+              </Text>
+            </VStack>
+          </Flex>
+        </CardHeader>
+      </Card.Root>
+
+      {/* KPI Cards */}
+      <SimpleGrid columns={{ base: 1, sm: 2, lg: 4 }} gap={4} mb={6}>
         {kpiCard(
           "Gesamt Kunden",
           totalCustomersAll.toLocaleString(),
-          "Aktiv gesamt"
+          "Aktiv gesamt",
+          "blue.500",
+          FiUsers
         )}
         {kpiCard(
           "Neue Kunden",
           newInPeriod.toLocaleString(),
-          "Summe im Zeitraum",
-          "teal.600"
+          `In den letzten ${daysGrowth} Tagen`,
+          "green.500",
+          FiTrendingUp
         )}
-      </Flex>
+        {kpiCard(
+          "Coaches",
+          sortedFlagsCoach.length.toLocaleString(),
+          "Aktive Trainer",
+          "purple.500",
+          FiUser
+        )}
+        {kpiCard(
+          "Flaggen Total",
+          sortedFlagsCoach.reduce((sum, c) => sum + c.total, 0).toLocaleString(),
+          "Alle Coaches",
+          "orange.500",
+          FiFlag
+        )}
+      </SimpleGrid>
 
-      {/* Filter Bar */}
-      <Flex
-        p={3}
-        rounded="lg"
-        borderWidth="1px"
-        borderColor="var(--color-border)"
-        bg="var(--color-surface)"
-        align="center"
-        gap={6}
-        wrap="wrap"
-        shadow="xs"
-      >
-        <Flex align="center" gap={2}>
-          <Text fontSize="xs" fontWeight="semibold" color="gray.600">
-            Wachstum
-          </Text>
-          <SimpleSelect
-            value={daysGrowth}
-            onChange={setDaysGrowth}
-            options={dayOptions}
-          />
-          <Button
-            size="xs"
-            onClick={fetchGrowth}
-            disabled={growthLoading}
-            variant="outline"
-          >
-            {growthLoading ? "..." : "Reload"}
-          </Button>
-        </Flex>
-        <Flex ml="auto" fontSize="xs" color="gray.500">
-          Letzte Aktualisierung: {new Date().toLocaleTimeString()}
-        </Flex>
-      </Flex>
-
-      {/* Charts Grid */}
-      <Box display="grid" gap={6}>
-        {/* Growth per Coach (cumulative multi-line) */}
-        <Box
-          p={5}
-          borderWidth="1px"
-          borderColor="var(--color-border)"
-          rounded="xl"
-          bg="var(--color-surface)"
-          shadow="sm"
-          position="relative"
-        >
-          <Flex justify="space-between" align="start" mb={3}>
-            <Box>
-              <Text fontSize="sm" fontWeight="semibold">
-                Kundenwachstum pro Coach (kumulativ)
-              </Text>
-              <Text fontSize="xs" color="gray.500">
-                Gesamt Kunden je Coach
-              </Text>
-            </Box>
+      {/* Filter Controls */}
+      <Card.Root mb={6}>
+        <CardBody>
+          <Flex align="center" justify="space-between" wrap="wrap" gap={4}>
+            <HStack gap={4}>
+              <VStack align="start" gap={1}>
+                <Text fontSize="sm" fontWeight="semibold">Zeitraum</Text>
+                <select
+                  value={daysGrowth}
+                  onChange={(e) => setDaysGrowth(parseInt(e.target.value))}
+                  style={{
+                    padding: "8px 12px",
+                    borderRadius: "6px",
+                    border: "1px solid var(--color-border)",
+                    background: "var(--color-surface)",
+                    color: "var(--color-text)",
+                    fontSize: "0.875rem",
+                    minWidth: "100px"
+                  }}
+                >
+                  {dayOptions.map((o) => (
+                    <option key={o} value={o}>
+                      {o} Tage
+                    </option>
+                  ))}
+                </select>
+              </VStack>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={fetchGrowth}
+                disabled={growthLoading}
+                leftIcon={growthLoading ? <Spinner size="xs" /> : <Icon as={FiRefreshCw} />}
+              >
+                {growthLoading ? "Lade..." : "Aktualisieren"}
+              </Button>
+            </HStack>
+            <Text fontSize="xs" color="var(--color-muted)">
+              Letzte Aktualisierung: {new Date().toLocaleTimeString()}
+            </Text>
           </Flex>
+        </CardBody>
+      </Card.Root>
+
+      {/* Charts */}
+      <Card.Root mb={6}>
+        <CardHeader>
+          <Flex align="center" gap={3}>
+            <Icon as={FiTrendingUp} color="green.500" />
+            <VStack align="start" gap={0}>
+              <Heading size="md">Kundenwachstum pro Coach</Heading>
+              <Text fontSize="sm" color="var(--color-muted)">Kumulatives Wachstum aller Coaches</Text>
+            </VStack>
+          </Flex>
+        </CardHeader>
+        <CardBody>
           {coachHoverLabel && coachHoverItems?.length ? (
             <Box
               position="absolute"
@@ -640,10 +653,13 @@ export function AdminAnalytics() {
               </Box>
             </Box>
           ) : null}
-          <Box height={260}>
+          <Box h={{ base: 260, md: 300 }}>
             {coachGrowthLoading ? (
               <Flex justify="center" align="center" h="100%">
-                <Spinner size="sm" />
+                <VStack gap={3}>
+                  <Spinner size="lg" color="green.500" />
+                  <Text fontSize="sm" color="var(--color-muted)">Lade Coach-Wachstum...</Text>
+                </VStack>
               </Flex>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
@@ -702,361 +718,377 @@ export function AdminAnalytics() {
               </ResponsiveContainer>
             )}
           </Box>
-        </Box>
-      </Box>
+        </CardBody>
+      </Card.Root>
 
       {/* Coach Details Section */}
-      <Text
-        fontSize={{ base: "xl", md: "2xl" }}
-        fontWeight="bold"
-        textAlign="center"
-        color="var(--color-text)"
-      >
-        Coach Details
-      </Text>
-      <Box
-        p={6}
-        borderWidth="1px"
-        borderColor="var(--color-border)"
-        rounded="xl"
-        bg="var(--color-surface)"
-        shadow="sm"
-      >
-        <Flex justify="space-between" align="center" mb={4} wrap="wrap" gap={4}>
-          <Box>
-            <Text fontSize="sm" fontWeight="semibold">
-              Coach auswählen
-            </Text>
-            <Flex gap={3} align="center" mt={1}>
-              <select
-                value={selectedCoachId}
-                onChange={(e) => handleCoachChange(e.target.value)}
-                style={selectStyle}
-                disabled={flagsCoachLoading}
-              >
-                <option value="">
-                  {flagsCoachLoading ? "Lade Coaches…" : "– Coach wählen –"}
-                </option>
-                {sortedFlagsCoach.map((c) => (
-                  <option key={c.coachId} value={c.coachId}>
-                    {`${c.name || ""} ${c.last_name || ""}`.trim()}
+      <Card.Root mb={6}>
+        <CardHeader>
+          <Flex align="center" gap={3}>
+            <Icon as={FiUser} color="blue.500" />
+            <VStack align="start" gap={0}>
+              <Heading size="md">Coach Details</Heading>
+              <Text fontSize="sm" color="var(--color-muted)">Detaillierte Analyse einzelner Coaches</Text>
+            </VStack>
+          </Flex>
+        </CardHeader>
+        <CardBody>
+          <Flex justify="space-between" align="center" mb={6} wrap="wrap" gap={4}>
+            <HStack gap={4}>
+              <VStack align="start" gap={1}>
+                <Text fontSize="sm" fontWeight="semibold">Coach auswählen</Text>
+                <select
+                  value={selectedCoachId}
+                  onChange={(e) => handleCoachChange(e.target.value)}
+                  style={{
+                    padding: "8px 12px",
+                    borderRadius: "6px",
+                    border: "1px solid var(--color-border)",
+                    background: "var(--color-surface)",
+                    color: "var(--color-text)",
+                    fontSize: "0.875rem",
+                    minWidth: "200px"
+                  }}
+                  disabled={flagsCoachLoading}
+                >
+                  <option value="">
+                    {flagsCoachLoading ? "Lade Coaches…" : "– Coach wählen –"}
                   </option>
-                ))}
-              </select>
-              <SimpleSelect
-                value={coachDays}
-                onChange={setCoachDays}
-                options={dayOptions}
-              />
-            </Flex>
-          </Box>
-          {coachDetail && (
-            <Box textAlign={{ base: "left", md: "right" }}>
-              <Text fontSize="lg" fontWeight="bold">
-                {coachDetail.coach.name} {coachDetail.coach.last_name}
-              </Text>
-              <Text fontSize="xs" color="var(--color-muted)">
-                Kunden gesamt: {coachDetail.customersCount.toLocaleString()} •
-                Neukunden ({coachDays}T):{" "}
-                {coachDetailGrowth
-                  .reduce((s, p) => s + (p.newCustomers || 0), 0)
-                  .toLocaleString()}
-              </Text>
-            </Box>
-          )}
-        </Flex>
-
-        {/* Coach Growth (selected) */}
-        {selectedCoachId ? (
-          <Box p={0} mb={6}>
-            <Text fontWeight="semibold" mb={2}>
-              Kundenwachstum ({coachDays} Tage)
-            </Text>
-            <Box height={260}>
-              {coachDetailGrowthLoading ? (
-                <Flex justify="center" align="center" h="100%">
-                  <Spinner size="sm" />
-                </Flex>
-              ) : (
-                <ResponsiveContainer width="100%" height="100%">
-                  <ComposedChart data={coachDetailGrowth}>
-                    <defs>
-                      <linearGradient id="coachNew" x1="0" y1="0" x2="0" y2="1">
-                        <stop
-                          offset="5%"
-                          stopColor="#3b82f6"
-                          stopOpacity={0.8}
-                        />
-                        <stop
-                          offset="95%"
-                          stopColor="#3b82f6"
-                          stopOpacity={0}
-                        />
-                      </linearGradient>
-                    </defs>
-                    <XAxis
-                      dataKey="date"
-                      tick={{ fill: "var(--color-muted)", fontSize: 10 }}
-                      tickLine={false}
-                      axisLine={false}
-                    />
-                    <YAxis
-                      tick={{ fill: "var(--color-muted)", fontSize: 10 }}
-                      tickLine={false}
-                      axisLine={false}
-                    />
-                    <ReTooltip />
-                    <Legend wrapperStyle={{ color: "var(--color-muted)" }} />
-                    <Area
-                      type="monotone"
-                      dataKey="newCustomers"
-                      name="Neue Kunden"
-                      stroke="#3b82f6"
-                      fillOpacity={0.35}
-                      fill="url(#coachNew)"
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="cumulative"
-                      name="Kumulativ"
-                      stroke="#94a3b8"
-                      strokeWidth={2}
-                      dot={false}
-                    />
-                  </ComposedChart>
-                </ResponsiveContainer>
-              )}
-            </Box>
-          </Box>
-        ) : (
-          <Box mb={6}>
-            <Text fontSize="sm" color="var(--color-muted)">
-              Bitte oben einen Coach auswählen.
-            </Text>
-          </Box>
-        )}
-
-        {/* Customers + Requirements */}
-        {coachDetail && (
-          <Flex gap={6} wrap="wrap">
-            <Box
-              flex="2"
-              minW="480px"
-              p={5}
-              borderWidth="1px"
-              rounded="lg"
-              bg="var(--color-surface)"
-              borderColor="var(--color-border)"
-            >
-              <Text fontWeight="semibold" mb={2}>
-                Kunden
-              </Text>
-              <Table.Root
-                size='sm' stickyHeader interactive className="admin-table"
-              >
-                <Table.Header>
-                  <Table.Row bg="#0d1424" borderBottom="1px solid #0a0f18">
-                    <Table.ColumnHeader
-                      onClick={() => onCoachSort("name")}
-                      cursor="pointer"
-                      aria-sort={
-                        coachSort.key === "name"
-                          ? coachSort.dir === "asc"
-                            ? "ascending"
-                            : "descending"
-                          : "none"
-                      }
-                    >
-                      <Flex align="center" gap={1}>
-                        <span>Name</span>
-                        {coachSort.key === "name" && (
-                          <Text
-                            as="span"
-                            fontSize="xs"
-                            color="var(--color-muted)"
-                          >
-                            {coachSort.dir === "asc" ? "▲" : "▼"}
-                          </Text>
-                        )}
-                      </Flex>
-                    </Table.ColumnHeader>
-                    <Table.ColumnHeader
-                      onClick={() => onCoachSort("email")}
-                      cursor="pointer"
-                      aria-sort={
-                        coachSort.key === "email"
-                          ? coachSort.dir === "asc"
-                            ? "ascending"
-                            : "descending"
-                          : "none"
-                      }
-                    >
-                      <Flex align="center" gap={1}>
-                        <span>E-Mail</span>
-                        {coachSort.key === "email" && (
-                          <Text
-                            as="span"
-                            fontSize="xs"
-                            color="var(--color-muted)"
-                          >
-                            {coachSort.dir === "asc" ? "▲" : "▼"}
-                          </Text>
-                        )}
-                      </Flex>
-                    </Table.ColumnHeader>
-                    <Table.ColumnHeader
-                      onClick={() => onCoachSort("mobile")}
-                      cursor="pointer"
-                      aria-sort={
-                        coachSort.key === "mobile"
-                          ? coachSort.dir === "asc"
-                            ? "ascending"
-                            : "descending"
-                          : "none"
-                      }
-                    >
-                      <Flex align="center" gap={1}>
-                        <span>Telefon</span>
-                        {coachSort.key === "mobile" && (
-                          <Text
-                            as="span"
-                            fontSize="xs"
-                            color="var(--color-muted)"
-                          >
-                            {coachSort.dir === "asc" ? "▲" : "▼"}
-                          </Text>
-                        )}
-                      </Flex>
-                    </Table.ColumnHeader>
-                    <Table.ColumnHeader
-                      textAlign="right"
-                      onClick={() => onCoachSort("yellow")}
-                      cursor="pointer"
-                      aria-sort={
-                        coachSort.key === "yellow"
-                          ? coachSort.dir === "asc"
-                            ? "ascending"
-                            : "descending"
-                          : "none"
-                      }
-                    >
-                      <Flex align="center" gap={1} justify="flex-end">
-                        <span>Gelb</span>
-                        {coachSort.key === "yellow" && (
-                          <Text
-                            as="span"
-                            fontSize="xs"
-                            color="var(--color-muted)"
-                          >
-                            {coachSort.dir === "asc" ? "▲" : "▼"}
-                          </Text>
-                        )}
-                      </Flex>
-                    </Table.ColumnHeader>
-                    <Table.ColumnHeader
-                      textAlign="right"
-                      onClick={() => onCoachSort("red")}
-                      cursor="pointer"
-                      aria-sort={
-                        coachSort.key === "red"
-                          ? coachSort.dir === "asc"
-                            ? "ascending"
-                            : "descending"
-                          : "none"
-                      }
-                    >
-                      <Flex align="center" gap={1} justify="flex-end">
-                        <span>Rot</span>
-                        {coachSort.key === "red" && (
-                          <Text
-                            as="span"
-                            fontSize="xs"
-                            color="var(--color-muted)"
-                          >
-                            {coachSort.dir === "asc" ? "▲" : "▼"}
-                          </Text>
-                        )}
-                      </Flex>
-                    </Table.ColumnHeader>
-                  </Table.Row>
-                </Table.Header>
-                <Table.Body>
-                  {sortedCoachCustomers.map((c) => (
-                    <Table.Row
-                      key={c.id}
-                      bg="var(--color-surface)"
-                      borderBottom="1px solid #0a0f18"
-                      _hover={{ bg: "rgba(0,0,0,0.22)", cursor: "pointer" }}
-                      onClick={() =>
-                        navigate(`/dashboard/CUSTOMER?userId=${c.id}`)
-                      }
-                    >
-                      <Table.Cell>
-                        {c.name} {c.last_name}
-                      </Table.Cell>
-                      <Table.Cell>
-                        {coachCustomerExtra[c.id]?.email || "—"}
-                      </Table.Cell>
-                      <Table.Cell>
-                        {coachCustomerExtra[c.id]?.mobileNumber || "—"}
-                      </Table.Cell>
-                      <Table.Cell textAlign="right" color="yellow.600">
-                        {c.yellow}
-                      </Table.Cell>
-                      <Table.Cell textAlign="right" color="red.600">
-                        {c.red}
-                      </Table.Cell>
-                    </Table.Row>
+                  {sortedFlagsCoach.map((c) => (
+                    <option key={c.coachId} value={c.coachId}>
+                      {`${c.name || ""} ${c.last_name || ""}`.trim()}
+                    </option>
                   ))}
-                </Table.Body>
-              </Table.Root>
-            </Box>
+                </select>
+              </VStack>
+              <VStack align="start" gap={1}>
+                <Text fontSize="sm" fontWeight="semibold">Zeitraum</Text>
+                <select
+                  value={coachDays}
+                  onChange={(e) => setCoachDays(parseInt(e.target.value))}
+                  style={{
+                    padding: "8px 12px",
+                    borderRadius: "6px",
+                    border: "1px solid var(--color-border)",
+                    background: "var(--color-surface)",
+                    color: "var(--color-text)",
+                    fontSize: "0.875rem",
+                    minWidth: "100px"
+                  }}
+                >
+                  {dayOptions.map((o) => (
+                    <option key={o} value={o}>
+                      {o} Tage
+                    </option>
+                  ))}
+                </select>
+              </VStack>
+            </HStack>
+            {coachDetail && (
+              <VStack align={{ base: "start", md: "end" }} gap={1}>
+                <Heading size="md">
+                  {coachDetail.coach.name} {coachDetail.coach.last_name}
+                </Heading>
+                <HStack gap={4} fontSize="sm" color="var(--color-muted)">
+                  <Text>Kunden: {coachDetail.customersCount.toLocaleString()}</Text>
+                  <Text>Neukunden ({coachDays}T): {coachDetailGrowth.reduce((s, p) => s + (p.newCustomers || 0), 0).toLocaleString()}</Text>
+                </HStack>
+              </VStack>
+            )}
+          </Flex>
 
-            <Box
-              flex="1"
-              minW="320px"
-              p={5}
-              borderWidth="1px"
-              rounded="lg"
-              bg="var(--color-surface)"
-              borderColor="var(--color-border)"
-            >
-              <Text fontWeight="semibold" mb={3}>
-                Kriterien des Coaches
-              </Text>
-              <Flex direction="column" gap={2} maxH="420px" overflowY="auto">
-                {coachRequirements.length === 0 ? (
-                  <Text color="var(--color-muted)">
-                    Keine Kriterien vorhanden.
-                  </Text>
-                ) : (
-                  coachRequirements.map((r: any) => (
-                    <Flex
-                      key={r.id}
-                      justify="space-between"
-                      p={2}
-                      borderWidth="1px"
-                      borderColor="var(--color-border)"
-                      rounded="md"
-                    >
-                      <Text>{r.title}</Text>
+          {/* Coach Growth Chart + Requirements */}
+          {selectedCoachId ? (
+            <SimpleGrid columns={{ base: 1, xl: 3 }} gap={6} mb={6}>
+              <Card.Root gridColumn={{ base: "1", xl: "1 / 3" }} bg="rgba(59, 130, 246, 0.05)" borderColor="blue.200">
+                <CardHeader>
+                  <Flex align="center" gap={2}>
+                    <Icon as={FiTrendingUp} color="blue.500" boxSize={4} />
+                    <Text fontWeight="semibold">Kundenwachstum ({coachDays} Tage)</Text>
+                  </Flex>
+                </CardHeader>
+                <CardBody>
+                  <Box height={260}>
+                    {coachDetailGrowthLoading ? (
+                      <Flex justify="center" align="center" h="100%">
+                        <VStack gap={3}>
+                          <Spinner size="lg" color="blue.500" />
+                          <Text fontSize="sm" color="var(--color-muted)">Lade Wachstumsdaten...</Text>
+                        </VStack>
+                      </Flex>
+                    ) : (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <ComposedChart data={coachDetailGrowth}>
+                      <defs>
+                        <linearGradient id="coachNew" x1="0" y1="0" x2="0" y2="1">
+                          <stop
+                            offset="5%"
+                            stopColor="#3b82f6"
+                            stopOpacity={0.8}
+                          />
+                          <stop
+                            offset="95%"
+                            stopColor="#3b82f6"
+                            stopOpacity={0}
+                          />
+                        </linearGradient>
+                      </defs>
+                      <XAxis
+                        dataKey="date"
+                        tick={{ fill: "var(--color-muted)", fontSize: 10 }}
+                        tickLine={false}
+                        axisLine={false}
+                      />
+                      <YAxis
+                        tick={{ fill: "var(--color-muted)", fontSize: 10 }}
+                        tickLine={false}
+                        axisLine={false}
+                      />
+                      <ReTooltip />
+                      <Legend wrapperStyle={{ color: "var(--color-muted)" }} />
+                      <Area
+                        type="monotone"
+                        dataKey="newCustomers"
+                        name="Neue Kunden"
+                        stroke="#3b82f6"
+                        fillOpacity={0.35}
+                        fill="url(#coachNew)"
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="cumulative"
+                        name="Kumulativ"
+                        stroke="#94a3b8"
+                        strokeWidth={2}
+                        dot={false}
+                      />
+                        </ComposedChart>
+                      </ResponsiveContainer>
+                    )}
+                  </Box>
+                </CardBody>
+              </Card.Root>
+
+              <Card.Root>
+                <CardHeader>
+                  <Flex align="center" gap={2}>
+                    <Icon as={FiTarget} color="purple.500" boxSize={4} />
+                    <Text fontWeight="semibold">Coach Kriterien ({coachRequirements.length})</Text>
+                  </Flex>
+                </CardHeader>
+                <CardBody>
+                  {coachRequirements.length === 0 ? (
+                    <Flex justify="center" align="center" py={8}>
+                      <VStack gap={3}>
+                        <Icon as={FiSettings} boxSize={12} color="var(--color-muted)" />
+                        <Text color="var(--color-muted)" textAlign="center">
+                          Keine Kriterien vorhanden
+                        </Text>
+                      </VStack>
                     </Flex>
-                  ))
+                  ) : (
+                    <VStack gap={3} align="stretch" maxH="340px" overflowY="auto">
+                      {coachRequirements.map((r: any) => (
+                        <Card.Root 
+                          key={r.id}
+                          bg="rgba(168, 85, 247, 0.05)"
+                          borderColor="purple.200"
+                          size="sm"
+                        >
+                          <CardBody p={3}>
+                            <VStack align="stretch" gap={2}>
+                              <Text fontSize="sm" fontWeight="semibold">{r.title}</Text>
+                              {r.description ? (
+                                <Text fontSize="xs" color="var(--color-muted)" whiteSpace="pre-wrap">
+                                  {r.description}
+                                </Text>
+                              ) : (
+                                <Text fontSize="xs" color="var(--color-muted)" fontStyle="italic">
+                                  Keine Beschreibung verfügbar
+                                </Text>
+                              )}
+                            </VStack>
+                          </CardBody>
+                        </Card.Root>
+                      ))}
+                    </VStack>
+                  )}
+                </CardBody>
+              </Card.Root>
+            </SimpleGrid>
+          ) : (
+            <Card.Root mb={6}>
+              <CardBody>
+                <Flex justify="center" align="center" py={12}>
+                  <VStack gap={3}>
+                    <Icon as={FiUser} boxSize={16} color="var(--color-muted)" />
+                    <Text fontSize="sm" color="var(--color-muted)" textAlign="center">
+                      Bitte wähle einen Coach aus, um detaillierte Statistiken anzuzeigen.
+                    </Text>
+                  </VStack>
+                </Flex>
+              </CardBody>
+            </Card.Root>
+          )}
+
+          {/* Customer Cards */}
+          {coachDetail && (
+            <Card.Root>
+              <CardHeader>
+                <Flex align="center" justify="space-between">
+                  <Flex align="center" gap={2}>
+                    <Icon as={FiUsers} color="green.500" boxSize={4} />
+                    <Text fontWeight="semibold">Kunden ({coachDetail.customersCount})</Text>
+                  </Flex>
+                  <HStack gap={2}>
+                    <Button size="sm" variant={coachSort.key === 'name' ? 'solid' : 'outline'} onClick={() => onCoachSort('name')}>
+                      Name {coachSort.key==='name' && (coachSort.dir==='asc' ? '↑':'↓')}
+                    </Button>
+                    <Button size="sm" variant={coachSort.key === 'red' ? 'solid' : 'outline'} onClick={() => onCoachSort('red')} colorScheme="red">
+                      Flags {coachSort.key==='red' && (coachSort.dir==='asc' ? '↑':'↓')}
+                    </Button>
+                  </HStack>
+                </Flex>
+              </CardHeader>
+              <CardBody>
+                {sortedCoachCustomers.length === 0 ? (
+                  <Flex justify="center" align="center" py={12}>
+                    <VStack gap={4}>
+                      <Icon as={FiUsers} boxSize={16} color="var(--color-muted)" />
+                      <Heading size="md" color="var(--color-muted)">
+                        Keine Kunden gefunden
+                      </Heading>
+                      <Text fontSize="sm" color="var(--color-muted)" textAlign="center">
+                        Dieser Coach hat noch keine Kunden zugewiesen.
+                      </Text>
+                    </VStack>
+                  </Flex>
+                ) : (
+                  <SimpleGrid columns={{ base: 1, md: 2, xl: 3 }} gap={4}>
+                    {sortedCoachCustomers.map((customer) => {
+                      const riskLevel = customer.red >= 10 ? 'lost' : customer.red >= 5 ? 'at-risk' : 'safe';
+                      
+                      return (
+                        <Card.Root
+                          key={customer.id}
+                          _hover={{
+                            transform: "translateY(-2px)",
+                            borderColor: riskLevel === 'lost' ? "red.300" : riskLevel === 'at-risk' ? "orange.300" : "green.300",
+                            cursor: "pointer"
+                          }}
+                          transition="all 0.2s ease"
+                          borderWidth="1px"
+                          borderColor={riskLevel === 'lost' ? "red.200" : riskLevel === 'at-risk' ? "orange.200" : "var(--color-border)"}
+                          bg="var(--color-surface)"
+                          onClick={() => navigate(`/dashboard/CUSTOMER?userId=${customer.id}`)}
+                        >
+                          <CardBody>
+                            <VStack align="stretch" gap={4}>
+                              {/* Header */}
+                              <Flex align="start" justify="space-between" gap={3}>
+                                <Flex align="center" gap={3} flex={1}>
+                                  <Flex 
+                                    w={10} h={10} 
+                                    align="center" justify="center" 
+                                    rounded="full" 
+                                    bg={riskLevel === 'lost' ? "red.500" : riskLevel === 'at-risk' ? "orange.500" : "green.500"}
+                                    color="white"
+                                    fontSize="sm"
+                                    fontWeight="bold"
+                                  >
+                                    {customer.name?.charAt(0)}{customer.last_name?.charAt(0)}
+                                  </Flex>
+                                  <VStack align="start" gap={0} flex={1}>
+                                    <Text fontWeight="semibold" lineHeight="1.3">
+                                      {customer.name} {customer.last_name}
+                                    </Text>
+                                    <HStack gap={2}>
+                                      {riskLevel === 'lost' && (
+                                        <Badge colorScheme="red" variant="solid" size="sm">
+                                          <Icon as={FiFlag} mr={1} boxSize={3} />
+                                          Verloren
+                                        </Badge>
+                                      )}
+                                      {riskLevel === 'at-risk' && (
+                                        <Badge colorScheme="orange" variant="solid" size="sm">
+                                          <Icon as={FiFlag} mr={1} boxSize={3} />
+                                          Gefährdet
+                                        </Badge>
+                                      )}
+                                      {riskLevel === 'safe' && (
+                                        <Badge colorScheme="green" variant="subtle" size="sm">
+                                          OK
+                                        </Badge>
+                                      )}
+                                    </HStack>
+                                  </VStack>
+                                </Flex>
+                              </Flex>
+                              
+                              {/* Contact Info */}
+                              <VStack gap={2} align="stretch">
+                                {coachCustomerExtra[customer.id]?.email && (
+                                  <Flex align="center" gap={2}>
+                                    <Icon as={FiMail} boxSize={4} color="var(--color-muted)" />
+                                    <Text fontSize="sm" color="var(--color-muted)">
+                                      {coachCustomerExtra[customer.id].email}
+                                    </Text>
+                                  </Flex>
+                                )}
+                                {coachCustomerExtra[customer.id]?.mobileNumber && (
+                                  <Flex align="center" gap={2}>
+                                    <Icon as={FiPhone} boxSize={4} color="var(--color-muted)" />
+                                    <Text fontSize="sm" color="var(--color-muted)">
+                                      {coachCustomerExtra[customer.id].mobileNumber}
+                                    </Text>
+                                  </Flex>
+                                )}
+                              </VStack>
+                              
+                              {/* Flags */}
+                              {(customer.yellow > 0 || customer.red > 0) && (
+                                <HStack gap={3}>
+                                  {customer.yellow > 0 && (
+                                    <Flex align="center" gap={1}>
+                                      <Box w={3} h={3} rounded="full" bg="yellow.400" />
+                                      <Text fontSize="sm" fontWeight="medium" color="yellow.600">
+                                        {customer.yellow}
+                                      </Text>
+                                    </Flex>
+                                  )}
+                                  {customer.red > 0 && (
+                                    <Flex align="center" gap={1}>
+                                      <Box w={3} h={3} rounded="full" bg="red.400" />
+                                      <Text fontSize="sm" fontWeight="medium" color="red.600">
+                                        {customer.red}
+                                      </Text>
+                                    </Flex>
+                                  )}
+                                </HStack>
+                              )}
+                            </VStack>
+                          </CardBody>
+                        </Card.Root>
+                      );
+                    })}
+                  </SimpleGrid>
                 )}
-              </Flex>
-            </Box>
-          </Flex>
-        )}
+              </CardBody>
+            </Card.Root>
+          )}
 
-        {coachDetailLoading && (
-          <Flex justify="center" py={6}>
-            <Spinner />
-          </Flex>
-        )}
-      </Box>
+          {coachDetailLoading && (
+            <Flex justify="center" py={6}>
+              <VStack gap={3}>
+                <Spinner size="lg" color="blue.500" />
+                <Text fontSize="sm" color="var(--color-muted)">Lade Coach Details...</Text>
+              </VStack>
+            </Flex>
+          )}
+        </CardBody>
+      </Card.Root>
 
-      {/* End Coach Details Section */}
-    </Flex>
+    </Box>
   );
 }
 export default AdminAnalytics;
