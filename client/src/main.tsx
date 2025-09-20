@@ -6,6 +6,10 @@ import {
   RouterProvider,
 } from "react-router-dom";
 import { router } from "./Router/router";
+import { tokenWatcher } from "./services/tokenWatcher";
+
+// Start token watcher for automatic logout on token expiration
+tokenWatcher.start();
 
 createRoot(document.getElementById("root")!).render(
   <Provider>

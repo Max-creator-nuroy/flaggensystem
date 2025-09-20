@@ -1,6 +1,6 @@
 import { Navigate, Outlet } from "react-router-dom";
 import { jwtDecode } from "jwt-decode";
-import { isTokenExpired } from "@/services/isTokenExpired";
+import { isTokenExpired, logout } from "@/services/getTokenFromLokal";
 
 type Props = {
   allowedRoles: string[];
@@ -10,7 +10,7 @@ const RoleProtectedRoute = ({ allowedRoles }: Props) => {
   const token = localStorage.getItem("token");
 
     if (!token || isTokenExpired(token)) {
-    localStorage.removeItem("token"); // optional: aufräumen
+    logout(); // Use centralized logout function
     return <Navigate to="/login" replace />;
   }
 

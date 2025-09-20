@@ -41,7 +41,7 @@ export const login = async (req: Request, res: Response) => {
   if (!valid) return res.status(401).json({ message: "Falsches Passwort" });
 
   const token = jwt.sign({ id: user.id, email: user.email, name: user.name, last_name: user.last_name, role: user.role, isAffiliate: user.isAffiliate, isCustomer: (user as any).isCustomer ?? true }, JWT_SECRET, {
-    expiresIn: "2h",
+    expiresIn: "12h",
   });
 
   res.json({ token });

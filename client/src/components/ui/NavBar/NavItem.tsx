@@ -2,6 +2,7 @@ import { Button, Flex, Icon, Text } from "@chakra-ui/react";
 import { Tooltip } from "@/components/ui/tooltip";
 import { Link, useLocation } from "react-router-dom";
 import { memo } from 'react';
+import { logout as serviceLogout } from "@/services/getTokenFromLokal";
 
 type NavItemProps = {
   collapsed: boolean;
@@ -12,9 +13,7 @@ type NavItemProps = {
 };
 
 export function logout() {
-  localStorage.removeItem("token"); // Token löschen
-  localStorage.removeItem("user"); // Optional, falls du auch User speicherst
-  window.location.href = "/login"; // Zurück zum Login
+  serviceLogout();
 }
 
 function InnerNavItem({ collapsed, icon, label, to, onClick }: NavItemProps) {

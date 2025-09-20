@@ -17,14 +17,22 @@ export const authenticateToken = (
   
   if (!token) {
     console.log("❌ No token provided");
-    return res.sendStatus(401);
+    return res.status(401).json({ message: "Access token required" });
   }
 
   jwt.verify(token, JWT_SECRET, (err, user) => {
     if (err) {
       console.log("❌ Token verification failed:", err.message);
-      return res.sendStatus(403);
+      
+      // Wenn Token abgelaufen ist, sende 401 (für automatisches Frontend-Logout)
+      if (err.name === 'TokenExpiredError') {
+        return res.status(401).json({ message: "Token expired", error: "TOKEN_EXPIRED" });
+      }
+      
+      // Andere JWT-Fehler (ungültiges Format, etc.) senden 403
+      return res.status(403).json({ message: "Invalid token", error: "INVALID_TOKEN" });
     }
+    
     console.log("✅ Token verified for user:", user);
     req.user = user;
     next();
