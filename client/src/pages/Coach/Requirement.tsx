@@ -504,7 +504,7 @@ export default function Requirement() {
                     <Field.Root>
                       <FieldLabel>Ausführliche Beschreibung</FieldLabel>
                       <Textarea
-                        placeholder="Formuliere deine Eingabe als Frage, damit die KI dich versteht (z. B. ‚Hat der Benutzer 2 Stories gepostet?‘)"
+                        placeholder="Formuliere deine Eingabe als Frage, damit die KI dich versteht (z. B. ‚Hat der Benutzer 2 Storys gepostet?‘)"
                         value={description}
                         onChange={(e) => setRequirementDescription(e.target.value)}
                         rows={6}
