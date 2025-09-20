@@ -20,13 +20,11 @@ import {
   CardHeader,
   Heading,
   VStack,
-  HStack,
   SimpleGrid,
 } from "@chakra-ui/react";
 import { useEffect, useMemo, useState } from "react";
 import { BsX } from "react-icons/bs";
-import { CgCheck } from "react-icons/cg";
-import { FiEdit3, FiClock, FiSettings, FiSend, FiEye } from "react-icons/fi";
+import { FiEdit3, FiEye } from "react-icons/fi";
 
 // Helper: humanize weekly cron like "m H * * d" into German day + HH:MM
 const DOW_DE = [

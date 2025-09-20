@@ -265,7 +265,7 @@ export default function CoachAnalytics(){
           ) : (
             <Box display='grid' gridTemplateColumns='repeat(auto-fill, minmax(320px, 1fr))' gap={3}>
               {requirements.map((req: any) => (
-                <Card 
+                <Card.Root 
                   key={req.id}
                   bg='rgba(168, 85, 247, 0.05)'
                   borderColor='purple.200'
@@ -286,7 +286,7 @@ export default function CoachAnalytics(){
                       )}
                     </VStack>
                   </CardBody>
-                </Card>
+                </Card.Root>
               ))}
             </Box>
           )}

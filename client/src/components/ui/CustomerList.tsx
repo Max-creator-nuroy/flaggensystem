@@ -14,8 +14,6 @@ import {
   Icon,
   Badge,
   SimpleGrid,
-  IconButton,
-  Spinner,
 } from "@chakra-ui/react";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";

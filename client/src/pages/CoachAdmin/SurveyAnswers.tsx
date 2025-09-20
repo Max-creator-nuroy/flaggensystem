@@ -19,7 +19,6 @@ import {
   Button,
   Dialog,
   VStack,
-  HStack,
   Icon,
   SimpleGrid,
 } from "@chakra-ui/react";

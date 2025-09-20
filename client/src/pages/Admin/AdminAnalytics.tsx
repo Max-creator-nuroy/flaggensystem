@@ -4,7 +4,6 @@ import {
   Flex, 
   Text, 
   Button, 
-  Table, 
   Spinner,
   Card,
   CardHeader,
@@ -14,9 +13,7 @@ import {
   HStack,
   Heading,
   SimpleGrid,
-  Badge,
-  Dialog,
-  Portal
+  Badge
 } from "@chakra-ui/react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
@@ -593,8 +590,8 @@ export function AdminAnalytics() {
                 size="sm"
                 onClick={fetchGrowth}
                 disabled={growthLoading}
-                leftIcon={growthLoading ? <Spinner size="xs" /> : <Icon as={FiRefreshCw} />}
               >
+                {growthLoading ? <Spinner size="xs" mr={2} /> : <Icon as={FiRefreshCw} mr={2} />}
                 {growthLoading ? "Lade..." : "Aktualisieren"}
               </Button>
             </HStack>

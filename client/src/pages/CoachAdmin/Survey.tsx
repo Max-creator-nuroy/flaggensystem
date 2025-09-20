@@ -1,6 +1,5 @@
 import getUserFromToken from "@/services/getTokenFromLokal";
 import { 
-  Button, 
   Flex, 
   Text, 
   Box, 
@@ -9,13 +8,12 @@ import {
   CardHeader, 
   Heading, 
   VStack, 
-  HStack, 
   Icon,
   Badge,
   SimpleGrid
 } from "@chakra-ui/react";
 import { Link, Outlet, useLocation } from "react-router";
-import { FiMessageSquare, FiEdit3, FiBarChart2, FiUsers } from "react-icons/fi";
+import { FiMessageSquare, FiEdit3, FiBarChart2 } from "react-icons/fi";
 
 export default function Survey() {
   const token = localStorage.getItem("token");

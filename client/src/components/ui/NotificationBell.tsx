@@ -66,7 +66,7 @@ export default function NotificationBell() {
     return () => clearInterval(interval);
   }, []);
 
-  const handleSurveyClick = (survey: UnreadSurvey) => {
+  const handleSurveyClick = () => {
     setIsOpen(false);
     if (user.role === 'CUSTOMER') {
       navigate('/survey');
@@ -146,7 +146,7 @@ export default function NotificationBell() {
                       p={3}
                       cursor="pointer"
                       _hover={{ bg: "rgba(255,255,255,0.04)" }}
-                      onClick={() => handleSurveyClick(survey)}
+                      onClick={() => handleSurveyClick()}
                       borderRadius={0}
                       borderWidth={0}
                       borderBottomWidth="1px"

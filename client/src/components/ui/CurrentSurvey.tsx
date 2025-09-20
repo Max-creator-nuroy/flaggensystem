@@ -7,7 +7,6 @@ import {
   CardHeader,
   Flex,
   Spinner,
-  Stack,
   Text,
   Textarea,
   Slider,
@@ -19,7 +18,7 @@ import {
   Progress,
 } from "@chakra-ui/react";
 import { useEffect, useState } from "react";
-import { FiMessageSquare, FiSend, FiCheckCircle, FiBarChart } from "react-icons/fi";
+import { FiMessageSquare, FiSend } from "react-icons/fi";
 import { toaster } from "@/components/ui/toaster";
 
 type SurveyQuestion = {

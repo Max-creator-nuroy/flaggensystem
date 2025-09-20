@@ -1,7 +1,6 @@
 import { 
   Box, 
   Flex, 
-  Grid, 
   Text, 
   Button, 
   Spinner, 
@@ -10,15 +9,12 @@ import {
   CardBody,
   Heading,
   VStack,
-  HStack,
   Icon,
-  Badge,
   SimpleGrid,
   Select,
   createListCollection,
   Portal
 } from "@chakra-ui/react";
-import type { ChangeEvent } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { 

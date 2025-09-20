@@ -14,13 +14,11 @@ import {
   HStack,
   SimpleGrid,
   Spinner,
-  IconButton
 } from "@chakra-ui/react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { 
   FiUsers, 
-  FiUserPlus, 
   FiSearch, 
   FiFilter,
   FiAlertTriangle,
@@ -28,7 +26,6 @@ import {
   FiPhone,
   FiUser,
   FiTrendingUp,
-  FiDownload,
   FiRefreshCw,
   FiShield
 } from "react-icons/fi";
@@ -167,7 +164,6 @@ export default function AdminCustomerList() {
     if (key === sortKey) setSortDir(d=> d==='asc' ? 'desc' : 'asc'); else { setSortKey(key); setSortDir('asc'); }
   };
 
-  const totalCustomers = customerList.length;
 
   return (
     <Box maxW="7xl" mx="auto" px={{ base: 3, md: 6 }} py={6}>
@@ -198,16 +194,16 @@ export default function AdminCustomerList() {
                 size="sm"
                 onClick={() => !loading && fetchCustomer()}
                 disabled={loading}
-                leftIcon={loading ? <Spinner size="xs" /> : <Icon as={FiRefreshCw} />}
               >
+                {loading ? <Spinner size="xs" mr={2} /> : <Icon as={FiRefreshCw} mr={2} />}
                 {loading ? 'Lade...' : 'Aktualisieren'}
               </Button>
               <Button 
                 colorScheme="purple"
                 size="sm"
                 onClick={() => navigate('/admin')}
-                leftIcon={<Icon as={FiShield} />}
               >
+                <Icon as={FiShield} mr={2} />
                 Admin Dashboard
               </Button>
             </HStack>

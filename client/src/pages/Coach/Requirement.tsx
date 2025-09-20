@@ -5,34 +5,28 @@ import {
   Field,
   FieldLabel,
   Flex,
-  Grid,
   Heading,
   Icon,
   IconButton,
   Input,
   Spinner,
-  Stack,
   Text,
   Textarea,
   Card,
   CardHeader,
   CardBody,
   VStack,
-  HStack,
   Badge,
   SimpleGrid,
   Tabs,
 } from "@chakra-ui/react";
 import { useEffect, useMemo, useState } from "react";
-import { BsX } from "react-icons/bs";
-import { CgCheck } from "react-icons/cg";
 import { Form } from "react-router";
 import { apiCall } from "@/services/apiCall";
 import { 
   FiCheckCircle, 
   FiXCircle, 
   FiPlus, 
-  FiEdit3, 
   FiLayers, 
   FiSettings,
   FiTarget,

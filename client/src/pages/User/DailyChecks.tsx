@@ -14,8 +14,6 @@ import {
   Input,
   Badge,
   SimpleGrid,
-  Portal,
-  Dialog,
 } from "@chakra-ui/react";
 import { useEffect, useState } from "react";
 import { FiCalendar, FiArrowLeft, FiVideo, FiDownload, FiUpload, FiCheckCircle } from "react-icons/fi";

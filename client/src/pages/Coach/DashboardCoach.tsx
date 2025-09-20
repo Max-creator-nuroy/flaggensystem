@@ -1,7 +1,6 @@
 import {
   Box,
   Flex,
-  Grid,
   Text,
   Icon,
   Spinner,
@@ -18,13 +17,9 @@ import {
   SimpleGrid,
 } from "@chakra-ui/react";
 import { useEffect, useState, useMemo } from "react";
-import {  CgProfile } from "react-icons/cg";
-import { FcQuestions } from "react-icons/fc";
 import { FiUsers, FiTrendingUp, FiBarChart2, FiUser, FiAward, FiTarget } from "react-icons/fi";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import getUserFromToken from "@/services/getTokenFromLokal";
-import { KpiCard } from "@/components/dashboard/KpiCard";
-import { kpiColor } from "@/components/dashboard/theme";
 import {
   XAxis,
   YAxis,
