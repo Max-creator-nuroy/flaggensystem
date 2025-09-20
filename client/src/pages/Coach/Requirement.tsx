@@ -496,7 +496,7 @@ export default function Requirement() {
                     <Field.Root>
                       <FieldLabel>Titel</FieldLabel>
                       <Input
-                        placeholder="z.B. Tägliche Bewegung, Ernährungsplan einhalten..."
+                        placeholder="z.B. 2 Storys Posten, Heute mit 30 Leuten schreiben..."
                         value={title}
                         onChange={(e) => setrequirementTitle(e.target.value)}
                       />
