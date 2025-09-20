@@ -582,3 +582,92 @@ export const rescanSurveySchedules = async (_req: Request, res: Response) => {
     res.status(500).json({ error: "Fehler beim Neustarten der Schedules" });
   }
 };
+
+// GET /surveys/user/unread - For customers to get unread surveys
+export const getUnreadSurveysForUser = async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user?.id;
+    if (!userId) {
+      return res.status(401).json({ error: "Nicht autorisiert" });
+    }
+
+    const unreadSurveys = await prisma.survey.findMany({
+      where: {
+        userId,
+        submittedAt: null, // Not submitted yet
+      },
+      include: {
+        questions: {
+          include: {
+            question: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+
+    // Transform to notification format
+    const notifications = unreadSurveys.map((survey) => ({
+      id: survey.id,
+      title: survey.comment || "Neue Umfrage",
+      createdAt: survey.createdAt,
+      questionCount: survey.questions.length,
+    }));
+
+    res.json(notifications);
+  } catch (error) {
+    console.error("Error fetching unread surveys for user:", error);
+    res.status(500).json({ error: "Fehler beim Laden der ungelesenen Umfragen" });
+  }
+};
+
+// GET /surveys/coach/unread - For coaches to get unread surveys from admin
+export const getUnreadSurveysForCoach = async (req: Request, res: Response) => {
+  try {
+    const coachId = (req as any).user?.id;
+    if (!coachId) {
+      return res.status(401).json({ error: "Nicht autorisiert" });
+    }
+
+    // Check if user is actually a coach
+    const coach = await prisma.user.findUnique({
+      where: { id: coachId },
+    });
+
+    if (!coach || coach.role !== "COACH") {
+      return res.status(403).json({ error: "Nur Coaches haben Zugriff" });
+    }
+
+    const unreadSurveys = await prisma.survey.findMany({
+      where: {
+        userId: coachId,
+        submittedAt: null, // Not submitted yet
+      },
+      include: {
+        questions: {
+          include: {
+            question: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+
+    // Transform to notification format
+    const notifications = unreadSurveys.map((survey) => ({
+      id: survey.id,
+      title: survey.comment || "Neue Umfrage vom Admin",
+      createdAt: survey.createdAt,
+      questionCount: survey.questions.length,
+    }));
+
+    res.json(notifications);
+  } catch (error) {
+    console.error("Error fetching unread surveys for coach:", error);
+    res.status(500).json({ error: "Fehler beim Laden der ungelesenen Umfragen" });
+  }
+};

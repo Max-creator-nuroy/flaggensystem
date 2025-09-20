@@ -18,6 +18,8 @@ import {
   updateSurveySchedule,
   deleteSurveySchedule,
   rescanSurveySchedules,
+  getUnreadSurveysForUser,
+  getUnreadSurveysForCoach,
 } from "../controllers/surveyController";
 import { authenticateToken } from "../middleware/authMiddleware";
 
@@ -47,5 +49,9 @@ router.post("/schedules", authenticateToken, createSurveySchedule);
 router.patch("/schedules/:id", authenticateToken, updateSurveySchedule);
 router.delete("/schedules/:id", authenticateToken, deleteSurveySchedule);
 router.post("/schedules/rescan", authenticateToken, rescanSurveySchedules);
+
+// 🆕 Notification routes for unread surveys
+router.get("/user/unread", authenticateToken, getUnreadSurveysForUser);
+router.get("/coach/unread", authenticateToken, getUnreadSurveysForCoach);
 
 export default router;

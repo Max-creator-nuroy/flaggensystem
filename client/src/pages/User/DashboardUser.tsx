@@ -54,7 +54,6 @@ export default function Dashboard() {
   const [isAffiliate, setIsAffiliate] = useState(!!userData?.isAffiliate);
   const [isCustomer, setIsCustomer] = useState(!!userData?.isCustomer);
   const [absenceRequests, setAbsenceRequests] = useState<any[]>([]);
-  const [leadsData, setLeadsData] = useState<any[]>([]);
   const [totalLeads, setTotalLeads] = useState(0);
   const [leadsLoading, setLeadsLoading] = useState(false);
   const [absenceReqLoading, setAbsenceReqLoading] = useState(false);
@@ -203,7 +202,6 @@ export default function Dashboard() {
       });
       if (res.ok) {
         const data = await res.json();
-        setLeadsData(data || []);
         setTotalLeads(data?.length || 0);
       }
     } catch (error) {
@@ -213,27 +211,6 @@ export default function Dashboard() {
     }
   };
 
-
-
-  // NEW: Admin toggle enable/disable customer
-  const toggleCustomerStatus = async () => {
-    if (!userIdParam || user?.role !== "ADMIN") return;
-    const endpoint = userData?.isDeleted ? "enableCustomer" : "disableCustomer";
-    try {
-      const res = await fetch(`http://localhost:3000/users/${endpoint}/${userIdParam}`, {
-        method: "PATCH",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) {
-        setUserData((prev: any) => ({ ...prev, isDeleted: !prev.isDeleted }));
-        toaster.success({ title: userData?.isDeleted ? "Kunde aktiviert" : "Kunde deaktiviert" });
-      } else {
-        toaster.error({ title: "Aktion fehlgeschlagen" });
-      }
-    } catch (e) {
-      toaster.error({ title: "Netzwerkfehler" });
-    }
-  };
 
   // NEW: Create manual flag
   const handleCreateFlag = async () => {
