@@ -344,7 +344,7 @@ export default function Requirement() {
                   <Field.Root>
                     <FieldLabel>Phasenname</FieldLabel>
                     <Input
-                      placeholder="z.B. Einführungsphase, Fortgeschrittene Phase..."
+                      placeholder="z.B. 2 Stories posten, 30 Menschen anschreiben..."
                       value={phaseName}
                       onChange={(e) => setPhaseName(e.target.value)}
                     />
@@ -504,7 +504,7 @@ export default function Requirement() {
                     <Field.Root>
                       <FieldLabel>Ausführliche Beschreibung</FieldLabel>
                       <Textarea
-                        placeholder="Beschreibe detailliert, was von den Kunden erwartet wird..."
+                        placeholder="Formuliere deine Eingabe als Frage, damit die KI dich versteht (z. B. ‚Hat der Benutzer 2 Stories gepostet?‘)"
                         value={description}
                         onChange={(e) => setRequirementDescription(e.target.value)}
                         rows={6}

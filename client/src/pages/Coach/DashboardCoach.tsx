@@ -238,7 +238,10 @@ export default function DashboardCoach() {
       );
       if (res.ok) {
         const json = await res.json();
+        console.log('Coach Customer Growth API Response:', json);
         setCustGrowth(json.data || []);
+      } else {
+        console.log('Coach Customer Growth API Error:', res.status, res.statusText);
       }
     } finally {
       setCustLoading(false);
@@ -249,11 +252,16 @@ export default function DashboardCoach() {
     fetchCoachCustomerGrowth();
   }, [custDays, coachId]);
 
-  // Derived/fallback series
+  // Derived/fallback series - only use real data for stats, dummy data for chart display only
   const custSeries =
     custGrowth && custGrowth.length
       ? custGrowth
       : (generateDummySeries(custDays, "newCustomers") as any[]);
+
+  // Calculate total new customers in the period - only from real data
+  const totalNewCustomers = (custGrowth && custGrowth.length) 
+    ? custGrowth.reduce((sum, item) => sum + (item.newCustomers || 0), 0) 
+    : 0;
 
   // Custom dark tooltip for growth chart
   const GrowthTooltip = ({ active, label, payload }: any) => {
@@ -430,7 +438,7 @@ export default function DashboardCoach() {
             <Flex align="center" justify="space-between">
               <Flex direction="column">
                 <Text fontSize="sm" color="var(--color-muted)">Wachstum</Text>
-                <Heading size="lg">+{custSeries?.length || 0}</Heading>
+                <Heading size="lg">+{totalNewCustomers}</Heading>
                 <Text fontSize="xs" color="var(--color-muted)" mt={1}>
                   Neue Kunden ({custDays}d)
                 </Text>
