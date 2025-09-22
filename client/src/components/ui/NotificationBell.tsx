@@ -23,8 +23,16 @@ interface UnreadSurvey {
   questionCount: number;
 }
 
+interface UnreadAbsence {
+  id: string;
+  type: 'URLAUB' | 'KRANKHEIT' | 'ANDERES';
+  createdAt: string;
+  customer: { name: string; last_name: string };
+}
+
 export default function NotificationBell() {
   const [unreadSurveys, setUnreadSurveys] = useState<UnreadSurvey[]>([]);
+  const [unreadAbsences, setUnreadAbsences] = useState<UnreadAbsence[]>([]);
   const [loading, setLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const navigate = useNavigate();
@@ -59,10 +67,34 @@ export default function NotificationBell() {
     }
   };
 
+  const fetchUnreadAbsences = async () => {
+    // Only for coaches
+    if (user.role !== 'COACH') return;
+    
+    try {
+      const res = await fetch('http://localhost:3000/absence/request/coach', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      
+      if (res.ok) {
+        const data = await res.json();
+        // Filter nur unbearbeitete Anträge
+        const unprocessed = (data as any[]).filter((req: any) => !req.processed);
+        setUnreadAbsences(unprocessed || []);
+      }
+    } catch (error) {
+      console.error("Failed to fetch unread absences:", error);
+    }
+  };
+
   useEffect(() => {
     fetchUnreadSurveys();
+    fetchUnreadAbsences();
     // Refresh every 5 minutes
-    const interval = setInterval(fetchUnreadSurveys, 5 * 60 * 1000);
+    const interval = setInterval(() => {
+      fetchUnreadSurveys();
+      fetchUnreadAbsences();
+    }, 5 * 60 * 1000);
     return () => clearInterval(interval);
   }, []);
 
@@ -75,7 +107,12 @@ export default function NotificationBell() {
     }
   };
 
-  const unreadCount = unreadSurveys.length;
+  const handleAbsenceClick = () => {
+    setIsOpen(false);
+    navigate('/inbox/coach');
+  };
+
+  const unreadCount = unreadSurveys.length + unreadAbsences.length;
 
   return (
     <Popover.Root open={isOpen} onOpenChange={(details) => setIsOpen(details.open)}>
@@ -90,7 +127,10 @@ export default function NotificationBell() {
           _focus={{ boxShadow: "none" }}
           onClick={() => {
             setIsOpen(!isOpen);
-            if (!isOpen) fetchUnreadSurveys();
+            if (!isOpen) {
+              fetchUnreadSurveys();
+              fetchUnreadAbsences();
+            }
           }}
         >
           <Icon as={FiBell} boxSize={5} />
@@ -132,17 +172,45 @@ export default function NotificationBell() {
                 <Flex align="center" justify="center" py={6}>
                   <Spinner size="sm" />
                 </Flex>
-              ) : unreadSurveys.length === 0 ? (
+              ) : (unreadSurveys.length === 0 && unreadAbsences.length === 0) ? (
                 <Box p={4} textAlign="center">
                   <Text color="var(--color-muted)" fontSize="sm">
-                    Keine neuen Umfragen
+                    Keine neuen Benachrichtigungen
                   </Text>
                 </Box>
               ) : (
                 <VStack align="stretch" gap={0}>
+                  {/* Urlaubsanträge zuerst anzeigen */}
+                  {unreadAbsences.map((absence) => (
+                    <Card.Root
+                      key={`absence-${absence.id}`}
+                      p={3}
+                      cursor="pointer"
+                      _hover={{ bg: "rgba(255,255,255,0.04)" }}
+                      onClick={() => handleAbsenceClick()}
+                      borderRadius={0}
+                      borderWidth={0}
+                      borderBottomWidth="1px"
+                      borderColor="var(--color-border)"
+                    >
+                      <Flex direction="column" gap={1}>
+                        <Text fontWeight="medium" fontSize="sm">
+                          Neuer {absence.type === 'URLAUB' ? 'Urlaubsantrag' : absence.type === 'KRANKHEIT' ? 'Krankmeldung' : 'Antrag'}
+                        </Text>
+                        <Text fontSize="xs" color="var(--color-muted)">
+                          von {absence.customer.name} {absence.customer.last_name}
+                        </Text>
+                        <Text fontSize="xs" color="var(--color-muted)">
+                          {new Date(absence.createdAt).toLocaleDateString('de-DE')}
+                        </Text>
+                      </Flex>
+                    </Card.Root>
+                  ))}
+                  
+                  {/* Dann Umfragen */}
                   {unreadSurveys.map((survey) => (
                     <Card.Root
-                      key={survey.id}
+                      key={`survey-${survey.id}`}
                       p={3}
                       cursor="pointer"
                       _hover={{ bg: "rgba(255,255,255,0.04)" }}
@@ -174,16 +242,9 @@ export default function NotificationBell() {
                   size="sm"
                   w="full"
                   variant="outline"
-                  onClick={() => {
-                    setIsOpen(false);
-                    if (user.role === 'CUSTOMER') {
-                      navigate('/survey');
-                    } else {
-                      navigate('/survey/surveyAnswers');
-                    }
-                  }}
+                  onClick={() => handleSurveyClick()}
                 >
-                  Alle Umfragen ansehen
+                  {user.role === 'CUSTOMER' ? 'Umfragen beantworten' : 'Alle Umfragen ansehen'} ({unreadSurveys.length})
                 </Button>
               </Popover.Footer>
             )}

@@ -8,13 +8,23 @@ import {
   Stack,
   Text,
   Checkbox,
+  Card,
+  CardHeader,
+  CardBody,
+  VStack,
+  Icon,
+  Field,
+  FieldLabel,
+  SimpleGrid,
+  Badge,
+  Separator,
 } from "@chakra-ui/react";
+import { FiUserPlus, FiUser, FiMail, FiPhone, FiUsers, FiLayers } from "react-icons/fi";
 import React, { useEffect, useState } from "react";
 import { apiCall } from "@/services/apiCall";
 
 export default function CreateUser() {
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [lastName, setLastName] = useState("");
   const [role, setRole] = useState("USER");
@@ -23,7 +33,7 @@ export default function CreateUser() {
   const [isCustomer, setIsCustomer] = useState(false);
   const [loading, setLoading] = useState(false);
   const [phases, setPhases] = useState([]);
-  const [selectedPhaseId, setSelectedPhaseId] = useState();
+  const [selectedPhaseId, setSelectedPhaseId] = useState("");
   const token = localStorage.getItem("token");
   const coach = getUserFromToken(token);
 
@@ -43,14 +53,14 @@ export default function CreateUser() {
 
     const userData = {
       email,
-      password,
+      password: name + lastName, // Automatisch generiertes Passwort
       name,
       last_name: lastName,
       role,
       isAffiliate,
       isCustomer,
       mobileNumber,
-      phaseId: selectedPhaseId,
+      phaseId: selectedPhaseId || undefined,
     };
 
     try {
@@ -73,7 +83,6 @@ export default function CreateUser() {
       );
       if (data) {
         setEmail("");
-        setPassword("");
         setName("");
         setLastName("");
         setRole("USER");
@@ -86,116 +95,260 @@ export default function CreateUser() {
     }
   };
 
-  const handleChangePhase = async (e: any) => {
-    const newPhaseId = e.target.value;
-    setSelectedPhaseId(newPhaseId);
-  };
 
   return (
-    <Box
-      maxW={{ base: "100%", sm: "400px", md: "480px" }}
-      mx="auto"
-      mt={8}
-      p={4}
-    >
-      <Heading size="lg" textAlign="center" mb={6}>
-        Neuen Benutzer anlegen
-      </Heading>
-      <form onSubmit={handleSubmit}>
-        <Stack>
-          <Box>
-            <Checkbox.Root
-              checked={isAffiliate}
-              onCheckedChange={(e: any) => setIsAffiliate(!!e.checked)}
+    <Box maxW="7xl" mx="auto" px={{ base: 3, md: 6 }} py={6}>
+      {/* Header */}
+      <Card.Root mb={8}>
+        <CardHeader>
+          <Flex align="center" gap={3}>
+            <Flex 
+              w={12} h={12} 
+              align="center" justify="center" 
+              rounded="full" 
+              bg="blue.500"
+              color="white"
             >
-              <Checkbox.HiddenInput />
-              <Checkbox.Control />
-              <Checkbox.Label>Affiliate</Checkbox.Label>
-            </Checkbox.Root>
-          </Box>
-          <Box>
-            <Checkbox.Root
-              checked={isCustomer}
-              onCheckedChange={(e: any) => setIsCustomer(!!e.checked)}
-            >
-              <Checkbox.HiddenInput />
-              <Checkbox.Control />
-              <Checkbox.Label>Kunde</Checkbox.Label>
-            </Checkbox.Root>
-          </Box>
-          <Box>
-            <Text fontSize="sm" mb={1}>
-              Email *
-            </Text>
-            <Input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="email@example.com"
-              required
-            />
-          </Box>
-
-          <Flex wrap="wrap" gap={4}>
-            <Box flex="1">
-              <Text fontSize="sm" mb={1}>
-                Vorname *
+              <Icon as={FiUserPlus} boxSize={6} />
+            </Flex>
+            <VStack align="start" gap={0}>
+              <Heading size="lg">Neuen Benutzer erstellen</Heading>
+              <Text color="var(--color-muted)" fontSize="sm">
+                Füge einen neuen Kunden oder Affiliate zu deinem Team hinzu
               </Text>
-              <Input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Max"
-                required
-              />
-            </Box>
-            <Box flex="1">
-              <Text fontSize="sm" mb={1}>
-                Nachname *
-              </Text>
-              <Input
-                value={lastName}
-                onChange={(e) => setLastName(e.target.value)}
-                placeholder="Mustermann"
-                required
-              />
-            </Box>
+            </VStack>
           </Flex>
+        </CardHeader>
+      </Card.Root>
 
-          <Box>
-            <Text fontSize="sm" mb={1}>
-              Mobilnummer *
-            </Text>
-            <Input
-              value={mobileNumber}
-              onChange={(e) => setMobileNumber(e.target.value)}
-              placeholder="+49123456789"
-              required
-            />
-          </Box>
+      <form onSubmit={handleSubmit}>
+        <VStack gap={6} align="stretch">
+          {/* Benutzertyp Auswahl */}
+          <Card.Root>
+            <CardHeader>
+              <Flex align="center" gap={3}>
+                <Icon as={FiUsers} color="purple.500" />
+                <Heading size="md">Benutzertyp auswählen</Heading>
+              </Flex>
+            </CardHeader>
+            <CardBody>
+              <SimpleGrid columns={{ base: 1, md: 2 }} gap={4}>
+                <Card.Root 
+                  borderWidth="2px" 
+                  borderColor={isAffiliate ? "teal.300" : "var(--color-border)"}
+                  cursor="pointer"
+                  _hover={{ borderColor: "teal.300" }}
+                  onClick={() => setIsAffiliate(!isAffiliate)}
+                  transition="all 0.2s"
+                >
+                  <CardBody p={4}>
+                    <Flex align="center" gap={3}>
+                      <Checkbox.Root
+                        checked={isAffiliate}
+                        onCheckedChange={(e: any) => setIsAffiliate(!!e.checked)}
+                      >
+                        <Checkbox.HiddenInput />
+                        <Checkbox.Control />
+                      </Checkbox.Root>
+                      <VStack align="start" gap={1}>
+                        <Text fontWeight="semibold">Affiliate</Text>
+                        <Text fontSize="sm" color="var(--color-muted)">
+                          Partner im Vertrieb
+                        </Text>
+                        <Badge colorScheme="teal" variant="subtle" size="sm">
+                          Keine Telefonnummer erforderlich
+                        </Badge>
+                      </VStack>
+                    </Flex>
+                  </CardBody>
+                </Card.Root>
 
-          <div>
-            <label>
-              <b>Phase:</b>{" "}
-              <select value={selectedPhaseId} onChange={handleChangePhase}>
-                <option value="">Keine Phase</option>
-                {phases.map((phase: any) => (
-                  <option key={phase.id} value={phase.id}>
-                    {phase.label || phase.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
+                <Card.Root 
+                  borderWidth="2px" 
+                  borderColor={isCustomer ? "blue.300" : "var(--color-border)"}
+                  cursor="pointer"
+                  _hover={{ borderColor: "blue.300" }}
+                  onClick={() => setIsCustomer(!isCustomer)}
+                  transition="all 0.2s"
+                >
+                  <CardBody p={4}>
+                    <Flex align="center" gap={3}>
+                      <Checkbox.Root
+                        checked={isCustomer}
+                        onCheckedChange={(e: any) => setIsCustomer(!!e.checked)}
+                      >
+                        <Checkbox.HiddenInput />
+                        <Checkbox.Control />
+                      </Checkbox.Root>
+                      <VStack align="start" gap={1}>
+                        <Text fontWeight="semibold">Kunde</Text>
+                        <Text fontSize="sm" color="var(--color-muted)">
+                          Endkunde für Betreuung
+                        </Text>
+                        <Badge colorScheme="blue" variant="subtle" size="sm">
+                          Vollständige Betreuung
+                        </Badge>
+                      </VStack>
+                    </Flex>
+                  </CardBody>
+                </Card.Root>
+              </SimpleGrid>
+            </CardBody>
+          </Card.Root>
 
-          <Button
-            type="submit"
-            colorScheme="teal"
-            loading={loading}
-            loadingText="Erstellen..."
-          >
-            Benutzer erstellen
-          </Button>
-        </Stack>
+          {/* Persönliche Daten */}
+          <Card.Root>
+            <CardHeader>
+              <Flex align="center" gap={3}>
+                <Icon as={FiUser} color="green.500" />
+                <Heading size="md">Persönliche Daten</Heading>
+              </Flex>
+            </CardHeader>
+            <CardBody>
+              <VStack gap={4} align="stretch">
+                <Field.Root>
+                  <FieldLabel>
+                    <Flex align="center" gap={2}>
+                      <Icon as={FiMail} boxSize={4} />
+                      E-Mail-Adresse *
+                    </Flex>
+                  </FieldLabel>
+                  <Input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="max.mustermann@example.com"
+                    required
+                    bg="var(--color-surface)"
+                    borderColor="var(--color-border)"
+                  />
+                </Field.Root>
+
+                <SimpleGrid columns={{ base: 1, md: 2 }} gap={4}>
+                  <Field.Root>
+                    <FieldLabel>Vorname *</FieldLabel>
+                    <Input
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder="Max"
+                      required
+                      bg="var(--color-surface)"
+                      borderColor="var(--color-border)"
+                    />
+                  </Field.Root>
+                  <Field.Root>
+                    <FieldLabel>Nachname *</FieldLabel>
+                    <Input
+                      value={lastName}
+                      onChange={(e) => setLastName(e.target.value)}
+                      placeholder="Mustermann"
+                      required
+                      bg="var(--color-surface)"
+                      borderColor="var(--color-border)"
+                    />
+                  </Field.Root>
+                </SimpleGrid>
+
+
+                {/* Telefonnummer nur für Kunden erforderlich */}
+                <Field.Root>
+                  <FieldLabel>
+                    <Flex align="center" gap={2}>
+                      <Icon as={FiPhone} boxSize={4} />
+                      Telefonnummer {!isAffiliate && isCustomer ? "*" : "(optional)"}
+                    </Flex>
+                  </FieldLabel>
+                  <Input
+                    value={mobileNumber}
+                    onChange={(e) => setMobileNumber(e.target.value)}
+                    placeholder="+49 123 456789"
+                    required={!isAffiliate && isCustomer}
+                    bg="var(--color-surface)"
+                    borderColor="var(--color-border)"
+                  />
+                  {isAffiliate && (
+                    <Text fontSize="xs" color="var(--color-muted)" mt={1}>
+                      Für Affiliates ist die Telefonnummer optional
+                    </Text>
+                  )}
+                </Field.Root>
+              </VStack>
+            </CardBody>
+          </Card.Root>
+
+          {/* Phase Auswahl */}
+          <Card.Root>
+            <CardHeader>
+              <Flex align="center" gap={3}>
+                <Icon as={FiLayers} color="orange.500" />
+                <VStack align="start" gap={0}>
+                  <Heading size="md">Phase zuweisen</Heading>
+                  <Text fontSize="sm" color="var(--color-muted)">
+                    Optional: Weise eine Startphase zu
+                  </Text>
+                </VStack>
+              </Flex>
+            </CardHeader>
+            <CardBody>
+              <Field.Root>
+                <FieldLabel>Phase auswählen</FieldLabel>
+                <select
+                  value={selectedPhaseId}
+                  onChange={(e) => setSelectedPhaseId(e.target.value)}
+                  style={{
+                    width: "100%",
+                    padding: "8px 12px",
+                    borderRadius: "6px",
+                    border: "1px solid var(--color-border)",
+                    backgroundColor: "var(--color-surface)",
+                    color: "var(--color-text)",
+                    fontSize: "14px",
+                    outline: "none",
+                  }}
+                >
+                  <option value="">Keine Phase ausgewählt</option>
+                  {phases.map((phase: any) => (
+                    <option key={phase.id} value={phase.id}>
+                      {phase.label || phase.name}
+                    </option>
+                  ))}
+                </select>
+              </Field.Root>
+            </CardBody>
+          </Card.Root>
+
+          {/* Aktionen */}
+          <Card.Root>
+            <CardBody>
+              <Flex justify="flex-end" gap={3}>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setEmail("");
+                    setName("");
+                    setLastName("");
+                    setMobileNumber("");
+                    setIsAffiliate(false);
+                    setIsCustomer(false);
+                    setSelectedPhaseId("");
+                  }}
+                >
+                  Zurücksetzen
+                </Button>
+                <Button
+                  type="submit"
+                  colorScheme="blue"
+                  loading={loading}
+                  loadingText="Erstelle Benutzer..."
+                  disabled={!email || !name || !lastName || (!isAffiliate && !isCustomer) || (!isAffiliate && isCustomer && !mobileNumber)}
+                >
+                  <Icon as={FiUserPlus} mr={2} />
+                  Benutzer erstellen
+                </Button>
+              </Flex>
+            </CardBody>
+          </Card.Root>
+        </VStack>
       </form>
     </Box>
   );

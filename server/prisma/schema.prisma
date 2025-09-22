@@ -15,7 +15,7 @@ datasource db {
 
 model User {
   id           String   @id @default(uuid())
-  email        String   @unique
+  email        String?   @unique
   password     String
   name         String
   last_name    String
@@ -229,7 +229,7 @@ model Lead {
   name         String
   email        String?
   mobileNumber String?         @unique
-  status       PipelineStatus  @default(INTERESSENT)
+  status       PipelineStatus  @default(NEU)
   closed       Boolean        @default(false)
   createdAt    DateTime       @default(now())
 }
@@ -365,14 +365,17 @@ enum AccessRequestStatus {
 }
 
 enum PipelineStatus {
-  INTERESSENT
+  NEU
+  ANGESCHRIEBEN
+  ANTWORT_ERHALTEN
   SETTING_TERMINIERT
-  SETTING_NOSHOW
-  DOWNSELL
   CLOSING_TERMINIERT
-  CLOSING_NOSHOW
-  KUNDE
-  LOST
+  DEAL_CLOSED
+  LOST_DISQUALIFIZIERT
+  FOLLOW_UP
+  NO_SHOW
+  TERMIN_ABGESAGT
+  TERMIN_VERSCHOBEN
 }
 
 // Anfrage-Log für Video-Zugriffe (Coach/Admin klickt „Video holen“)

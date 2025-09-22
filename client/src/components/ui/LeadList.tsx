@@ -2,7 +2,10 @@ import {
   Badge,
   Box,
   Card,
+  CardBody,
+  CardHeader,
   Flex,
+  Heading,
   Input,
   Spinner,
   Table,
@@ -14,24 +17,28 @@ import {
   ResponsiveContainer,
   ComposedChart,
   Area,
-  Bar,
   Line,
   XAxis,
   YAxis,
   Tooltip as ReTooltip,
+  Legend,
 } from "recharts";
+import { useSearchParams } from "react-router-dom";
 import getUserFromToken from "@/services/getTokenFromLokal";
 
 // Types aligned with backend
 type PipelineStatus =
-  | "INTERESSENT"
+  | "NEU"
+  | "ANGESCHRIEBEN"
+  | "ANTWORT_ERHALTEN"
   | "SETTING_TERMINIERT"
-  | "SETTING_NOSHOW"
-  | "DOWNSELL"
   | "CLOSING_TERMINIERT"
-  | "CLOSING_NOSHOW"
-  | "KUNDE"
-  | "LOST";
+  | "DEAL_CLOSED"
+  | "LOST_DISQUALIFIZIERT"
+  | "FOLLOW_UP"
+  | "NO_SHOW"
+  | "TERMIN_ABGESAGT"
+  | "TERMIN_VERSCHOBEN";
 
 interface Lead {
   id: string;
@@ -43,16 +50,25 @@ interface Lead {
   closed?: boolean;
 }
 
+interface DailyDataPoint {
+  date: string;
+  newLeads: number;
+  cumulative: number;
+}
+
 // Labels and colors for statuses
 const STATUS_LABELS: Record<PipelineStatus, string> = {
-  INTERESSENT: "Interessent",
-  SETTING_TERMINIERT: "Setting terminiert",
-  SETTING_NOSHOW: "Setting No-Show",
-  DOWNSELL: "Downsell",
-  CLOSING_TERMINIERT: "Closing terminiert",
-  CLOSING_NOSHOW: "Closing No-Show",
-  KUNDE: "Kunde",
-  LOST: "Lost",
+  NEU: "Neu",
+  ANGESCHRIEBEN: "Angeschrieben",
+  ANTWORT_ERHALTEN: "Antwort Erhalten",
+  SETTING_TERMINIERT: "Setting Terminiert",
+  CLOSING_TERMINIERT: "Closing Terminiert",
+  DEAL_CLOSED: "Deal Closed",
+  LOST_DISQUALIFIZIERT: "Lost/Disqualifiziert",
+  FOLLOW_UP: "Follow Up",
+  NO_SHOW: "No-Show",
+  TERMIN_ABGESAGT: "Termin abgesagt",
+  TERMIN_VERSCHOBEN: "Termin verschoben",
 };
 
 // Helpers
@@ -65,6 +81,10 @@ const LeadList = () => {
   const [selectedStatus, setSelectedStatus] = useState<string>("ALLE");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [daysRange] = useState(30);
+  
+  const [searchParams] = useSearchParams();
+  const urlUserId = searchParams.get("userId");
+  const [targetUserName, setTargetUserName] = useState<string>("");
 
   // Fetch real leads from server
   useEffect(() => {
@@ -73,10 +93,17 @@ const LeadList = () => {
       try {
         const token = localStorage.getItem("token");
         const payload = getUserFromToken(token);
-        const userId = payload?.id || payload?.userId;
-        if (!userId) throw new Error("Kein User im Token gefunden");
+        
+        // Use URL userId if available (when coach views affiliate's leads), otherwise use token userId
+        let targetUserId = urlUserId;
+        if (!targetUserId) {
+          targetUserId = payload?.id || payload?.userId;
+        }
+        
+        if (!targetUserId) throw new Error("Kein User im Token gefunden");
+        
         const res = await fetch(
-          `http://localhost:3000/leads/getLeadsByUser/${userId}`,
+          `http://localhost:3000/leads/getLeadsByUser/${targetUserId}`,
           {
             headers: {
               Authorization: token ? `Bearer ${token}` : "",
@@ -89,6 +116,26 @@ const LeadList = () => {
         const data = await res.json();
         if (!mounted) return;
         setLeadList(data || []);
+        
+        // Fetch user name if viewing someone else's leads
+        if (urlUserId && urlUserId !== (payload?.id || payload?.userId)) {
+          try {
+            const userRes = await fetch(
+              `http://localhost:3000/users/getUser/${targetUserId}`,
+              {
+                headers: {
+                  Authorization: token ? `Bearer ${token}` : "",
+                },
+              }
+            );
+            if (userRes.ok) {
+              const userData = await userRes.json();
+              setTargetUserName(userData.name || "");
+            }
+          } catch (e) {
+            console.error("Fehler beim Laden des Benutzernamens", e);
+          }
+        }
       } catch (e) {
         console.error("Leads laden fehlgeschlagen", e);
         if (mounted) setLeadList([]);
@@ -100,25 +147,28 @@ const LeadList = () => {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [urlUserId]);
 
   // Leads per status (formerly per stage)
   const statuses: PipelineStatus[] = [
-    "INTERESSENT",
+    "NEU",
+    "ANGESCHRIEBEN",
+    "ANTWORT_ERHALTEN",
     "SETTING_TERMINIERT",
-    "SETTING_NOSHOW",
-    "DOWNSELL",
     "CLOSING_TERMINIERT",
-    "CLOSING_NOSHOW",
-    "KUNDE",
-    "LOST",
+    "DEAL_CLOSED",
+    "LOST_DISQUALIFIZIERT",
+    "FOLLOW_UP",
+    "NO_SHOW",
+    "TERMIN_ABGESAGT",
+    "TERMIN_VERSCHOBEN",
   ];
 
   const leadsPerStatus = useMemo(() => {
     const counts: Record<string, number> = {};
     statuses.forEach((s) => (counts[s] = 0));
     leadList.forEach((lead) => {
-      const key = lead.status || "INTERESSENT";
+      const key = lead.status || "NEU";
       counts[key] = (counts[key] || 0) + 1;
     });
     return counts;
@@ -127,8 +177,8 @@ const LeadList = () => {
   // Chart data per day from real leads
   const dailyData = useMemo(() => {
     const today = new Date();
-    const map: Record<string, { date: string; newLeads: number; cumulative: number; ma7?: number }> = {};
-    const out: { date: string; newLeads: number; cumulative: number; ma7?: number }[] = [];
+    const map: Record<string, DailyDataPoint> = {};
+    const out: DailyDataPoint[] = [];
     for (let i = daysRange - 1; i >= 0; i--) {
       const d = new Date(today);
       d.setDate(today.getDate() - i);
@@ -147,19 +197,12 @@ const LeadList = () => {
         map[k].cumulative = cum;
         out.push(map[k]);
       });
-    // 7-day moving average for newLeads
-    for (let i = 0; i < out.length; i++) {
-      const start = Math.max(0, i - 6);
-      const slice = out.slice(start, i + 1);
-      const sum = slice.reduce((s, d) => s + d.newLeads, 0);
-      out[i].ma7 = Number((sum / slice.length).toFixed(2));
-    }
     return out;
   }, [leadList, daysRange]);
 
   const totalLeads = leadList.length;
   const closedLeads = useMemo(
-    () => leadList.filter((l) => l.status === "KUNDE").length,
+    () => leadList.filter((l) => l.status === "DEAL_CLOSED").length,
     [leadList]
   );
   const conversionRate = totalLeads ? Math.round((closedLeads / totalLeads) * 100) : 0;
@@ -194,15 +237,36 @@ const LeadList = () => {
     return copy;
   }, [filteredByStatus, sortDir]);
 
+  // Custom dark tooltip for lead chart
+  const LeadTooltip = ({ active, label, payload }: any) => {
+    if (!active || !payload?.length) return null;
+    return (
+      <Box bg="var(--color-surface)" border="1px solid var(--color-border)" rounded="md" shadow="lg" p={2}>
+        <Text fontSize="xs" color="var(--color-muted)" mb={1}>{label}</Text>
+        <Box display="grid" gridTemplateColumns="1fr auto" gap={1}>
+          {payload.map((p: any) => (
+            <Box key={p.dataKey} display="contents">
+              <Box display="flex" alignItems="center" gap="6px">
+                <Box w="8px" h="8px" bg={p.color} rounded="full" />
+                <Text fontSize="xs" color="var(--color-text)">{p.name}</Text>
+              </Box>
+              <Text fontSize="xs" color="var(--color-text)" textAlign="right">{p.value?.toLocaleString?.() ?? p.value}</Text>
+            </Box>
+          ))}
+        </Box>
+      </Box>
+    );
+  };
+
   const StatusBadge = (status?: PipelineStatus) => {
     const label = status ? STATUS_LABELS[status] : "—";
     const accent =
-      status === "KUNDE" ? "green.300" :
-      status === "LOST" ? "red.300" :
+      status === "DEAL_CLOSED" ? "green.300" :
+      status === "LOST_DISQUALIFIZIERT" ? "red.300" :
       status === "SETTING_TERMINIERT" ? "blue.300" :
       status === "CLOSING_TERMINIERT" ? "cyan.300" :
-      status === "SETTING_NOSHOW" || status === "CLOSING_NOSHOW" ? "orange.300" :
-      status === "DOWNSELL" ? "purple.300" :
+      status === "NO_SHOW" || status === "TERMIN_ABGESAGT" || status === "TERMIN_VERSCHOBEN" ? "orange.300" :
+      status === "FOLLOW_UP" ? "purple.300" :
       "gray.300";
     return (
       <Badge
@@ -224,60 +288,55 @@ const LeadList = () => {
 
   return (
     <Box>
-      <Text fontSize="2xl" fontWeight="bold">Deine Leads</Text>
+      <Text fontSize="2xl" fontWeight="bold">
+        {targetUserName ? `Leads von ${targetUserName}` : "Deine Leads"}
+      </Text>
 
       {loading ? (
         <Spinner mt={4} />
       ) : (
         <>
-          {/* Charts */}
-          <Box display="grid" gridTemplateColumns={{ base: "1fr", md: "1fr 320px" }} gap={4} mt={4}>
-            {/* Kombinierter Chart: Kumulativ (Area) + Neue Leads (Bar) + 7T Schnitt (Line) */}
-            <Box>
-              <Text fontWeight="semibold" mb={2}>Gesamt Leads</Text>
-              <Box height={280}>
+          {/* Modern Chart Section */}
+          <Card.Root 
+            mb={8}
+            bg="var(--color-surface)"
+            borderWidth="1px"
+            borderColor="var(--color-border)"
+          >
+            <CardHeader>
+              <Flex justify="space-between" align="center" flexWrap="wrap" gap={3}>
+                <VStack align="start" gap={0}>
+                  <Heading size="md" color="var(--color-text)">Lead-Wachstum</Heading>
+                  <Text fontSize="sm" color="var(--color-muted)">Neue Leads vs. kumulativ</Text>
+                </VStack>
+                <Box textAlign="center">
+                  <Text fontSize="sm" color="var(--color-muted)">Abschlussquote</Text>
+                  <Text fontSize="2xl" fontWeight="bold" color="green.500">{conversionRate}%</Text>
+                  <Text fontSize="xs" color="var(--color-muted)">{closedLeads} von {totalLeads} Leads</Text>
+                </Box>
+              </Flex>
+            </CardHeader>
+            <CardBody>
+              <Box height={320}>
                 <ResponsiveContainer width="100%" height="100%">
-                  <ComposedChart data={dailyData}>
-                    <XAxis dataKey="date" hide={dailyData.length > 25} />
-                    <YAxis allowDecimals={false} />
-                    <ReTooltip
-                      contentStyle={{
-                        background: 'var(--color-surface)',
-                        border: '1px solid var(--color-border)',
-                        borderRadius: 6,
-                        color: 'var(--color-text)',
-                        boxShadow: 'none',
-                      }}
-                      labelStyle={{ color: 'var(--color-text)' }}
-                      itemStyle={{ color: 'var(--color-text)' }}
-                    />
+                  <ComposedChart data={dailyData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
                     <defs>
-                      <linearGradient id="leadArea" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#2563eb" stopOpacity={0.35} />
-                        <stop offset="95%" stopColor="#2563eb" stopOpacity={0.05} />
-                      </linearGradient>
-                      <linearGradient id="newLeadsArea" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#0d9488" stopOpacity={0.35} />
-                        <stop offset="95%" stopColor="#0d9488" stopOpacity={0.06} />
+                      <linearGradient id="leadNew" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#6366f1" stopOpacity={0.8} />
+                        <stop offset="95%" stopColor="#6366f1" stopOpacity={0.1} />
                       </linearGradient>
                     </defs>
-                    <Area type="monotone" dataKey="cumulative" stroke="#2563eb" strokeWidth={2} fill="url(#leadArea)" name="Kumulativ" />
-                    <Bar dataKey="newLeads" name="Neue Leads" fill="url(#newLeadsArea)" />
-                    <Line type="monotone" dataKey="ma7" name="7T Schnitt" stroke="#0ea5e9" strokeWidth={2} dot={false} />
+                    <XAxis dataKey="date" tick={{ fontSize: 12, fill: 'var(--color-muted)' }} tickLine={false} axisLine={false} />
+                    <YAxis tick={{ fontSize: 12, fill: 'var(--color-muted)' }} tickLine={false} axisLine={false} />
+                    <ReTooltip content={<LeadTooltip />} cursor={{ stroke: 'rgba(255,255,255,0.12)', strokeWidth: 1 }} />
+                    <Legend wrapperStyle={{ color: 'var(--color-muted)' }} iconType="plainline" formatter={(v: any) => <span style={{ color: 'var(--color-muted)' }}>{v}</span>} />
+                    <Area type="monotone" dataKey="newLeads" name="Neue Leads" stroke="#6366f1" fillOpacity={1} fill="url(#leadNew)" dot={false} activeDot={{ r: 4, stroke: '#6366f1', strokeWidth: 2 }} />
+                    <Line type="monotone" dataKey="cumulative" name="Kumulativ" stroke="#10b981" strokeWidth={2} dot={false} activeDot={{ r: 4, stroke: '#10b981', strokeWidth: 2 }} />
                   </ComposedChart>
                 </ResponsiveContainer>
               </Box>
-            </Box>
-
-            {/* Abschlussquote */}
-            <Box display="flex" alignItems="center" justifyContent="center">
-              <Box textAlign="center">
-                <Text fontSize="sm" color="gray.600">Abschlussquote</Text>
-                <Text fontSize="4xl" fontWeight="bold" color="green.600">{conversionRate}%</Text>
-                <Text fontSize="xs" color="gray.500">{closedLeads} von {totalLeads} Leads</Text>
-              </Box>
-            </Box>
-          </Box>
+            </CardBody>
+          </Card.Root>
 
           {/* Pipeline Status Übersicht */}
           <Flex gap={2} mt={4} flexWrap="wrap">

@@ -25,6 +25,14 @@ import {
   Icon,
   Box,
 } from "@chakra-ui/react";
+import {
+  ResponsiveContainer,
+  Area,
+  AreaChart,
+  XAxis,
+  YAxis,
+  Tooltip as ReTooltip,
+} from "recharts";
 import { useEffect, useState } from "react";
 import { FiFlag, FiShield, FiTrendingUp, FiUser, FiCalendar, FiUsers } from "react-icons/fi";
 import Moment from "moment";
@@ -56,6 +64,8 @@ export default function Dashboard() {
   const [absenceRequests, setAbsenceRequests] = useState<any[]>([]);
   const [totalLeads, setTotalLeads] = useState(0);
   const [leadsLoading, setLeadsLoading] = useState(false);
+  const [leadGrowthData, setLeadGrowthData] = useState<any[]>([]);
+  const [leadGrowthLoading, setLeadGrowthLoading] = useState(false);
   const [absenceReqLoading, setAbsenceReqLoading] = useState(false);
   const [journalEntries, setJournalEntries] = useState<any[]>([]);
   const [journalLoading, setJournalLoading] = useState(false);
@@ -175,6 +185,7 @@ export default function Dashboard() {
   // Load leads data for affiliates
   if (userData?.isAffiliate) {
     loadLeadsData();
+    loadLeadGrowthData();
   }
   }, [userIdParam, token, userData?.isAffiliate]);
 
@@ -197,7 +208,7 @@ export default function Dashboard() {
     const uid = userIdParam == null ? user.id : userIdParam;
     try {
       setLeadsLoading(true);
-      const res = await fetch(`http://localhost:3000/leads/getLeadsByAffiliate/${uid}`, {
+      const res = await fetch(`http://localhost:3000/leads/getLeadsByUser/${uid}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
@@ -208,6 +219,28 @@ export default function Dashboard() {
       console.error("Error loading leads:", error);
     } finally {
       setLeadsLoading(false);
+    }
+  };
+
+  const loadLeadGrowthData = async () => {
+    const uid = userIdParam == null ? user.id : userIdParam;
+    
+    // Only load for affiliates (including affiliate+customer)
+    if (!userData?.isAffiliate && !userIdParam) return;
+    
+    try {
+      setLeadGrowthLoading(true);
+      const res = await fetch(`http://localhost:3000/leads/leadGrowth?days=7&coachId=${uid}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const json = await res.json();
+        setLeadGrowthData(json.data || []);
+      }
+    } catch (error) {
+      console.error("Error loading lead growth:", error);
+    } finally {
+      setLeadGrowthLoading(false);
     }
   };
 
@@ -416,14 +449,61 @@ export default function Dashboard() {
                 <Flex align="center" justify="center" py={8}>
                   <Spinner size="md" />
                 </Flex>
+              ) : userData?.isAffiliate && !userData?.isCustomer ? (
+                <Box>
+                  <Text fontSize="lg" fontWeight="bold" mb={2}>
+                    {totalLeads} Leads insgesamt
+                  </Text>
+                  {leadGrowthLoading ? (
+                    <Flex align="center" justify="center" h="120px">
+                      <Spinner size="sm" />
+                    </Flex>
+                  ) : leadGrowthData.length > 0 ? (
+                    <Box h="120px">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={leadGrowthData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
+                          <defs>
+                            <linearGradient id="leadArea" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#3182ce" stopOpacity={0.8} />
+                              <stop offset="95%" stopColor="#3182ce" stopOpacity={0.1} />
+                            </linearGradient>
+                          </defs>
+                          <XAxis dataKey="date" hide />
+                          <YAxis hide />
+                          <ReTooltip 
+                            contentStyle={{
+                              background: 'var(--color-surface)',
+                              border: '1px solid var(--color-border)',
+                              borderRadius: 6,
+                              color: 'var(--color-text)',
+                            }}
+                            labelFormatter={(label) => `Datum: ${label}`}
+                            formatter={(value, name) => [value, name === 'newLeads' ? 'Neue Leads' : 'Kumulativ']}
+                          />
+                          <Area 
+                            type="monotone" 
+                            dataKey="newLeads" 
+                            stroke="#3182ce" 
+                            fillOpacity={1} 
+                            fill="url(#leadArea)"
+                            strokeWidth={2}
+                          />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    </Box>
+                  ) : (
+                    <Flex align="center" justify="center" h="120px">
+                      <Text fontSize="sm" color="var(--color-muted)">
+                        Keine Lead-Daten der letzten 7 Tage
+                      </Text>
+                    </Flex>
+                  )}
+                </Box>
               ) : (
                 <Flex align="center" justify="center" py={8}>
                   <VStack>
                     <Icon as={FiUsers} boxSize={12} color="blue.500" />
-                    <Text>Lead-Chart wird hier angezeigt</Text>
-                    <Text fontSize="sm" color="var(--color-muted)">
-                      {totalLeads} Leads insgesamt
-                    </Text>
+                    <Text>Nur für Affiliates verfügbar</Text>
                   </VStack>
                 </Flex>
               )}
@@ -765,6 +845,86 @@ export default function Dashboard() {
               </VStack>
             </CardBody>
           </Card.Root>
+
+          {/* Lead Chart for Affiliate+Customer users */}
+          {userData?.isAffiliate && userData?.isCustomer && (
+            <Card.Root 
+              bg="var(--color-surface)" 
+              borderWidth="1px" 
+              borderColor="var(--color-border)"
+              cursor="pointer"
+              onClick={() => navigate(userIdParam ? `/leadlist?userId=${userIdParam}` : '/leadlist')}
+              _hover={{ bg: "rgba(255,255,255,0.04)", transform: "translateY(-1px)" }}
+              transition="all 0.2s"
+            >
+              <CardHeader>
+                <Flex align="center" justify="space-between">
+                  <Heading size="md">Meine Leads</Heading>
+                  <Icon as={FiTrendingUp} color="blue.500" boxSize={6} />
+                </Flex>
+                <Text fontSize="sm" color="var(--color-muted)">
+                  Klicken für Details
+                </Text>
+              </CardHeader>
+              <CardBody>
+                {leadsLoading ? (
+                  <Flex align="center" justify="center" py={4}>
+                    <Spinner size="md" />
+                  </Flex>
+                ) : (
+                  <Box>
+                    <Text fontSize="lg" fontWeight="bold" mb={3}>
+                      {totalLeads} Leads insgesamt
+                    </Text>
+                    {leadGrowthLoading ? (
+                      <Flex align="center" justify="center" h="120px">
+                        <Spinner size="sm" />
+                      </Flex>
+                    ) : leadGrowthData.length > 0 ? (
+                      <Box h="120px">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <AreaChart data={leadGrowthData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
+                            <defs>
+                              <linearGradient id="leadAreaAffiliate" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#3182ce" stopOpacity={0.8} />
+                                <stop offset="95%" stopColor="#3182ce" stopOpacity={0.1} />
+                              </linearGradient>
+                            </defs>
+                            <XAxis dataKey="date" hide />
+                            <YAxis hide />
+                            <ReTooltip 
+                              contentStyle={{
+                                background: 'var(--color-surface)',
+                                border: '1px solid var(--color-border)',
+                                borderRadius: 6,
+                                color: 'var(--color-text)',
+                              }}
+                              labelFormatter={(label) => `Datum: ${label}`}
+                              formatter={(value, name) => [value, name === 'newLeads' ? 'Neue Leads' : 'Kumulativ']}
+                            />
+                            <Area 
+                              type="monotone" 
+                              dataKey="newLeads" 
+                              stroke="#3182ce" 
+                              fillOpacity={1} 
+                              fill="url(#leadAreaAffiliate)"
+                              strokeWidth={2}
+                            />
+                          </AreaChart>
+                        </ResponsiveContainer>
+                      </Box>
+                    ) : (
+                      <Flex align="center" justify="center" h="120px">
+                        <Text fontSize="sm" color="var(--color-muted)">
+                          Keine Lead-Daten der letzten 7 Tage
+                        </Text>
+                      </Flex>
+                    )}
+                  </Box>
+                )}
+              </CardBody>
+            </Card.Root>
+          )}
 
           <Card.Root bg="var(--color-surface)" borderWidth="1px" borderColor="var(--color-border)">
             <CardHeader><Heading size="md">Flaggen</Heading></CardHeader>

@@ -152,6 +152,83 @@ export async function updateLeadByMobile(input: UpdateLeadInput) {
   return updatedLead;
 }
 
+// GET /leads/coachLeadGrowth?days=30&coachId=xyz (auth: coach/admin)
+export const getLeadGrowthForCoachAffiliates = async (req: Request & { user?: any }, res: Response) => {
+  try {
+    const days = parseInt(String(req.query.days || '30'));
+    const fromDate = new Date();
+    fromDate.setDate(fromDate.getDate() - (isNaN(days)?30:days));
+
+    // Determine coach id: if admin can pass coachId query, else use token user id
+    const coachId = (req.query.coachId as string) || req.user?.id;
+    if(!coachId) return res.status(400).json({ success:false, error:'MISSING_COACH_ID' });
+
+    console.log(`[getLeadGrowthForCoachAffiliates] CoachId: ${coachId}, Days: ${days}`);
+
+    // Get all customers/affiliates of this coach
+    const coachCustomerLinks = await prisma.coachCustomer.findMany({
+      where: {
+        coachId: coachId
+      },
+      select: { customerId: true }
+    });
+
+    console.log(`[getLeadGrowthForCoachAffiliates] Found ${coachCustomerLinks.length} coach-customer links`);
+    
+    const customerIds = coachCustomerLinks
+      .map(link => link.customerId)
+      .filter((id): id is string => id !== null);
+    console.log(`[getLeadGrowthForCoachAffiliates] Customer IDs:`, customerIds);
+
+    // If no customers found, return empty data
+    if (customerIds.length === 0) {
+      return res.json({ 
+        success: true, 
+        rangeDays: days, 
+        coachId, 
+        data: [], 
+        affiliateCount: 0,
+        message: 'No affiliates found for this coach'
+      });
+    }
+
+    // Get leads from all these customers within the date range
+    const leads = await prisma.lead.findMany({
+      where: { 
+        userId: { in: customerIds }, 
+        createdAt: { gte: fromDate } 
+      },
+      select: { createdAt: true },
+      orderBy: { createdAt: 'asc' }
+    });
+
+    console.log(`[getLeadGrowthForCoachAffiliates] Found ${leads.length} leads from ${fromDate}`);
+
+    const map: Record<string, number> = {};
+    leads.forEach(l => { 
+      const key = l.createdAt.toISOString().slice(0,10); 
+      map[key] = (map[key]||0)+1; 
+    });
+
+    const data: { date:string; newLeads:number; cumulative:number }[] = [];
+    let cursor = new Date(fromDate);
+    const today = new Date();
+    let cumulative = 0;
+    while (cursor <= today) {
+      const key = cursor.toISOString().slice(0,10);
+      const newCount = map[key] || 0;
+      cumulative += newCount;
+      data.push({ date:key, newLeads: newCount, cumulative });
+      cursor.setDate(cursor.getDate()+1);
+    }
+
+    return res.json({ success:true, rangeDays: days, coachId, data, affiliateCount: customerIds.length });
+  } catch(e){
+    console.error('getLeadGrowthForCoachAffiliates error', e);
+    return res.status(500).json({ success:false, error:'INTERNAL_ERROR' });
+  }
+};
+
 // GET /leads/leadGrowth?days=30  (auth: coach/admin)
 export const getLeadGrowthForCoach = async (req: Request & { user?: any }, res: Response) => {
   try {

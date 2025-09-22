@@ -10,71 +10,76 @@ function mapStatus(input?: string): PipelineStatus | undefined {
   if (!input) return undefined;
   const normalized = input.trim().toLowerCase();
   switch (normalized) {
-    case "interessent":
-      return PipelineStatus.INTERESSENT;
+    case "neu":
+      return PipelineStatus.NEU;
+    case "angeschrieben":
+      return PipelineStatus.ANGESCHRIEBEN;
+    case "antwort erhalten":
+      return PipelineStatus.ANTWORT_ERHALTEN;
     case "setting terminiert":
       return PipelineStatus.SETTING_TERMINIERT;
-    case "setting noshow":
-      return PipelineStatus.SETTING_NOSHOW;
-    case "downsell":
-      return PipelineStatus.DOWNSELL;
     case "closing terminiert":
       return PipelineStatus.CLOSING_TERMINIERT;
-    case "closing noshow":
-      return PipelineStatus.CLOSING_NOSHOW;
-    case "kunde":
-      return PipelineStatus.KUNDE;
+    case "deal closed":
+      return PipelineStatus.DEAL_CLOSED;
+    case "lost/disqualifiziert":
     case "lost":
-      return PipelineStatus.LOST;
+    case "disqualifiziert":
+      return PipelineStatus.LOST_DISQUALIFIZIERT;
+    case "follow up":
+      return PipelineStatus.FOLLOW_UP;
+    case "no-show":
+    case "noshow":
+      return PipelineStatus.NO_SHOW;
+    case "termin abgesagt":
+      return PipelineStatus.TERMIN_ABGESAGT;
+    case "termin verschoben":
+      return PipelineStatus.TERMIN_VERSCHOBEN;
     default:
       return undefined;
   }
 }
 
 export const handleLeadUpsert = async (req: Request, res: Response) => {
+  console.log(req);
   const reqId = `CLOSE-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
   try {
-    const { name, phone, email, status, custom_field } = req.body;
+    const { Name, Telefonnummer, Status, affiliate_Email } = req.body;
 
     console.log(`[${reqId}] ▶ handleLeadUpsert start`);
     console.log(`[${reqId}] Incoming body:`, req.body);
 
-    if (!phone && (!email || email === "[]")) {
-      console.warn(`[${reqId}] ❌ Missing phone and email`);
+    if (!Telefonnummer ) {
+      console.warn(`[${reqId}] ❌ Missing Telefonnummer`);
       return res
         .status(400)
         .json({ error: "Telefonnummer oder E-Mail erforderlich." });
     }
 
-    const cleanEmail =
-      email && email !== "[]"
-        ? email.replace(/[\[\]"]/g, "").trim()
-        : undefined;
-    const cleanPhone = phone?.trim() ?? undefined;
-    const fullName = name?.trim() ?? "Unbenannt";
-    const statusEnum = mapStatus(status);
-    const isNowCustomer = statusEnum === PipelineStatus.KUNDE;
+    const cleanTelefonnummer = Telefonnummer?.trim() ?? undefined;
+    const fullName = Name?.trim() ?? "Unbenannt";
+    const statusEnum = mapStatus(Status);
+    const isNowCustomer = statusEnum === PipelineStatus.DEAL_CLOSED;
 
     console.log(`[${reqId}] Parsed fields`, {
-      cleanEmail,
-      cleanPhone,
+      cleanTelefonnummer,
       fullName,
-      status,
+      Status,
       statusEnum,
       isNowCustomer,
-      custom_field,
+      affiliate_Email,
     });
 
-    // Interner Nutzer (Affiliate/Coach) anhand der E-Mail aus custom_field finden
-    console.log(`[${reqId}] Looking up internal user by email`, custom_field);
+    // Interner Nutzer (Affiliate/Coach) anhand der E-Mail aus affiliate_Email finden
+    console.log(`[${reqId}] Looking up internal user by email`, affiliate_Email);
     const internalUser = await prisma.user.findUnique({
-      where: { email: custom_field },
+      where: { email: affiliate_Email },
     });
 
     if (!internalUser) {
-      console.warn(`[${reqId}] ❌ Internal user not found for`, custom_field);
+      console.warn(`[${reqId}] ❌ Internal user not found for`, affiliate_Email);
       return res.status(404).json({
-        error: `Kein interner Nutzer mit Email ${custom_field} gefunden.`,
+        error: `Kein interner Nutzer mit Email ${affiliate_Email} gefunden.`,
       });
     }
     console.log(`[${reqId}] ✅ Internal user`, {
@@ -84,8 +89,7 @@ export const handleLeadUpsert = async (req: Request, res: Response) => {
 
     // Bestehenden Lead anhand Telefonnummer oder E-Mail suchen
     const leadWhereOr = [
-      cleanPhone ? { mobileNumber: cleanPhone } : undefined,
-      cleanEmail ? { email: cleanEmail } : undefined,
+      cleanTelefonnummer ? { mobileNumber: cleanTelefonnummer } : undefined,
     ].filter(Boolean) as any;
     console.log(`[${reqId}] Searching existing lead with`, leadWhereOr);
 
@@ -103,8 +107,7 @@ export const handleLeadUpsert = async (req: Request, res: Response) => {
       // Update bestehender Lead
       const updateData = {
         name: fullName,
-        email: cleanEmail,
-        mobileNumber: cleanPhone,
+        mobileNumber: cleanTelefonnummer,
         userId: internalUser.id,
         status: (statusEnum ?? existingLead.status) as PipelineStatus,
         closed: isNowCustomer,
@@ -122,8 +125,7 @@ export const handleLeadUpsert = async (req: Request, res: Response) => {
       // Neuer Lead
       const createData = {
         name: fullName,
-        email: cleanEmail,
-        mobileNumber: cleanPhone,
+        mobileNumber: cleanTelefonnummer,
         userId: internalUser.id,
         status: statusEnum as PipelineStatus | undefined,
         closed: isNowCustomer,
@@ -137,15 +139,14 @@ export const handleLeadUpsert = async (req: Request, res: Response) => {
     }
 
     if (isNowCustomer) {
-      console.log(`[${reqId}] Status is KUNDE → ensure customer user & linkage.`);
+      console.log(`[${reqId}] Status is DEAL_CLOSED → ensure customer user & linkage.`);
       const [firstName, ...rest] = fullName.split(" ");
       const lastName = rest.join(" ") || "-";
-      console.log(`[${reqId}] Split name`, { firstName, lastName });
+      console.log(`[${reqId}] Split Name`, { firstName, lastName });
 
       // Suche nach vorhandenem Kunden-User
       const userWhereOr = [
-        cleanEmail ? { email: cleanEmail } : undefined,
-        cleanPhone ? { mobileNumber: cleanPhone } : undefined,
+        cleanTelefonnummer ? { mobileNumber: cleanTelefonnummer } : undefined,
       ].filter(Boolean) as any;
       console.log(`[${reqId}] Searching for existing customer user with`, userWhereOr);
 
@@ -172,19 +173,24 @@ export const handleLeadUpsert = async (req: Request, res: Response) => {
 
       if (!customerUser) {
         console.log(`[${reqId}] No existing customer user → creating new customer user`);
+        // Generate unique email for login since leads don't have email
+        const uniqueEmail = cleanTelefonnummer 
+          ? `customer+${cleanTelefonnummer.replace(/[^0-9]/g, '')}@flaggensystem.local`
+          : `customer+${Date.now()}@flaggensystem.local`;
+        
         customerUser = await prisma.user.create({
-          data: {
+          data: { 
             name: firstName,
             last_name: lastName,
-            email: cleanEmail,
-            mobileNumber: cleanPhone,
+            email: uniqueEmail,
+            mobileNumber: cleanTelefonnummer,
             // password absichtlich nicht geloggt
-            password: firstName + lastName,
+            password: firstName + lastName, 
             role: Role.CUSTOMER,
             isCustomer: true,
           },
         });
-        console.log(`[${reqId}] ✅ Customer user created`, { id: customerUser.id });
+        console.log(`[${reqId}] ✅ Customer user created`, { id: customerUser.id, email: uniqueEmail });
       } else {
         console.log(`[${reqId}] ✅ Found existing customer user`, { id: customerUser.id });
       }

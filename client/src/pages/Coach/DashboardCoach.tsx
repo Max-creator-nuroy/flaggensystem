@@ -192,10 +192,16 @@ export default function DashboardCoach() {
   const dayOptions = [7, 30, 90];
 
   type CustPoint = { date: string; newCustomers: number; cumulative: number };
+  type LeadPoint = { date: string; newLeads: number; cumulative: number };
 
   const [custDays, setCustDays] = useState(30);
   const [custGrowth, setCustGrowth] = useState<CustPoint[]>([]);
   const [custLoading, setCustLoading] = useState(false);
+
+  // Lead growth data
+  const [leadDays, setLeadDays] = useState(30);
+  const [leadGrowth, setLeadGrowth] = useState<LeadPoint[]>([]);
+  const [leadLoading, setLeadLoading] = useState(false);
 
   // Admin-only customer list helpers
   const [search, setSearch] = useState("");
@@ -252,6 +258,38 @@ export default function DashboardCoach() {
     fetchCoachCustomerGrowth();
   }, [custDays, coachId]);
 
+  const fetchLeadGrowth = async () => {
+    // For coach dashboard, we want leads from all their affiliates
+    const targetCoachId = coachId; // This is the coach whose dashboard we're viewing
+    console.log('fetchLeadGrowth - targetCoachId:', targetCoachId);
+    console.log('fetchLeadGrowth - userId:', userId);
+    console.log('fetchLeadGrowth - coach?.id:', coach?.id);
+    if (!targetCoachId) return;
+    setLeadLoading(true);
+    try {
+      const apiUrl = `http://localhost:3000/leads/coachLeadGrowth?days=${leadDays}&coachId=${targetCoachId}`;
+      console.log('Making API call to:', apiUrl);
+      const res = await fetch(apiUrl, { headers });
+      if (res.ok) {
+        const json = await res.json();
+        console.log('Coach Lead Growth API Response:', json);
+        console.log('Lead Growth Data:', json.data);
+        console.log('Lead Growth Data Length:', json.data?.length);
+        setLeadGrowth(json.data || []);
+      } else {
+        console.log('Coach Lead Growth API Error:', res.status, res.statusText);
+        const errorText = await res.text();
+        console.log('Error response:', errorText);
+      }
+    } finally {
+      setLeadLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchLeadGrowth();
+  }, [leadDays, coachId]);
+
   // Derived/fallback series - only use real data for stats, dummy data for chart display only
   const custSeries =
     custGrowth && custGrowth.length
@@ -262,6 +300,14 @@ export default function DashboardCoach() {
   const totalNewCustomers = (custGrowth && custGrowth.length) 
     ? custGrowth.reduce((sum, item) => sum + (item.newCustomers || 0), 0) 
     : 0;
+
+  // Calculate total new leads in the period - only from real data
+  const totalNewLeads = (leadGrowth && leadGrowth.length) 
+    ? leadGrowth.reduce((sum, item) => sum + (item.newLeads || 0), 0) 
+    : 0;
+  
+  console.log('Lead Growth State:', leadGrowth);
+  console.log('Total New Leads Calculated:', totalNewLeads);
 
   // Custom dark tooltip for growth chart
   const GrowthTooltip = ({ active, label, payload }: any) => {
@@ -353,7 +399,7 @@ export default function DashboardCoach() {
       </Card.Root>
 
       {/* Modern KPI Grid */}
-      <SimpleGrid columns={{ base: 1, sm: 2, lg: 4 }} gap={4} mb={8}>
+      <SimpleGrid columns={{ base: 1, sm: 2, lg: 3, xl: 5 }} gap={4} mb={8}>
         <Card.Root 
           bg="var(--color-surface)" 
           borderWidth="1px" 
@@ -437,13 +483,32 @@ export default function DashboardCoach() {
           <CardBody>
             <Flex align="center" justify="space-between">
               <Flex direction="column">
-                <Text fontSize="sm" color="var(--color-muted)">Wachstum</Text>
+                <Text fontSize="sm" color="var(--color-muted)">Kundenwachstum</Text>
                 <Heading size="lg">+{totalNewCustomers}</Heading>
                 <Text fontSize="xs" color="var(--color-muted)" mt={1}>
                   Neue Kunden ({custDays}d)
                 </Text>
               </Flex>
               <Icon as={FiTrendingUp} color="purple.500" boxSize={6} />
+            </Flex>
+          </CardBody>
+        </Card.Root>
+
+        <Card.Root 
+          bg="var(--color-surface)" 
+          borderWidth="1px" 
+          borderColor="var(--color-border)"
+        >
+          <CardBody>
+            <Flex align="center" justify="space-between">
+              <Flex direction="column">
+                <Text fontSize="sm" color="var(--color-muted)">Lead-Wachstum</Text>
+                <Heading size="lg">+{totalNewLeads}</Heading>
+                <Text fontSize="xs" color="var(--color-muted)" mt={1}>
+                  Neue Leads ({leadDays}d)
+                </Text>
+              </Flex>
+              <Icon as={FiTarget} color="blue.500" boxSize={6} />
             </Flex>
           </CardBody>
         </Card.Root>
