@@ -267,3 +267,70 @@ export const getLeadGrowthForCoach = async (req: Request & { user?: any }, res: 
     return res.status(500).json({ success:false, error:'INTERNAL_ERROR' });
   }
 };
+
+// GET /leads/dailyActivity/:userId
+export const getDailyLeadActivity = async (req: Request, res: Response) => {
+  const { userId } = req.params;
+  
+  try {
+    const today = new Date();
+    const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const endOfToday = new Date(startOfToday.getTime() + 24 * 60 * 60 * 1000);
+    
+    const yesterday = new Date(startOfToday.getTime() - 24 * 60 * 60 * 1000);
+    const endOfYesterday = startOfToday;
+
+    // Get all leads for this user to analyze current status
+    const allLeads = await prisma.lead.findMany({
+      where: { userId },
+      select: {
+        id: true,
+        status: true,
+        createdAt: true
+      }
+    });
+
+    // Get today's newly created leads
+    const todaysNewLeads = allLeads.filter(l => 
+      l.createdAt >= startOfToday && l.createdAt < endOfToday
+    );
+
+    // Get yesterday's newly created leads for comparison
+    const yesterdaysNewLeads = allLeads.filter(l => 
+      l.createdAt >= yesterday && l.createdAt < endOfYesterday
+    );
+
+    // Count current status distribution (snapshot of current pipeline state)
+    const todayActivity = {
+      neue: todaysNewLeads.length,
+      angeschrieben: allLeads.filter(l => l.status === 'ANGESCHRIEBEN').length,
+      antwortErhalten: allLeads.filter(l => l.status === 'ANTWORT_ERHALTEN').length,
+      settingCall: allLeads.filter(l => l.status === 'SETTING_TERMINIERT').length,
+      closingCall: allLeads.filter(l => l.status === 'CLOSING_TERMINIERT').length,
+      dealsClosed: allLeads.filter(l => l.status === 'DEAL_CLOSED').length,
+      disqualifiziert: allLeads.filter(l => l.status === 'LOST_DISQUALIFIZIERT').length
+    };
+
+    // Count yesterday's new leads for comparison
+    const yesterdayActivity = {
+      neue: yesterdaysNewLeads.length,
+      angeschrieben: 0, // Can't track historical status changes without updatedAt
+      antwortErhalten: 0,
+      settingCall: 0,
+      closingCall: 0,
+      dealsClosed: 0,
+      disqualifiziert: 0
+    };
+
+    res.json({
+      success: true,
+      today: todayActivity,
+      yesterday: yesterdayActivity,
+      date: startOfToday.toISOString().slice(0, 10)
+    });
+
+  } catch (error) {
+    console.error("Error fetching daily lead activity:", error);
+    res.status(500).json({ error: "Fehler beim Abrufen der täglichen Lead-Aktivitäten" });
+  }
+};

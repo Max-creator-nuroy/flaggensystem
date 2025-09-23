@@ -100,7 +100,7 @@ export default function DashboardCoach() {
       const data: any[] = await res.json();
 
       setCustomerList(data);
-      setCountCustomer(data.filter((c) => !c.isAffiliate).length);
+      setCountCustomer(data.filter((c) => c.isCustomer).length);
       setCountAffiliate(data.filter((c) => c.isAffiliate).length);
 
       let risk = 0;
@@ -515,54 +515,113 @@ export default function DashboardCoach() {
       </SimpleGrid>
 
       {/* Modern Chart Section */}
-      <Card.Root 
-        mb={8}
-        bg="var(--color-surface)"
-        borderWidth="1px"
-        borderColor="var(--color-border)"
-      >
-        <CardHeader>
-          <Flex justify="space-between" align="center" flexWrap="wrap" gap={3}>
-            <VStack align="start" gap={0}>
-              <Heading size="md" color="var(--color-text)">Kundenwachstum</Heading>
-              <Text fontSize="sm" color="var(--color-muted)">Neue Kunden vs. kumulativ</Text>
-            </VStack>
-            <Flex align="center" gap={2}>
-              <Text fontSize="sm" fontWeight="medium" color="var(--color-muted)">Zeitraum:</Text>
-              <SimpleSelect value={custDays} onChange={setCustDays} options={dayOptions} />
-            </Flex>
-          </Flex>
-        </CardHeader>
-        <CardBody>
-          <Box height={320}>
-            {custLoading ? (
-              <Flex justify="center" align="center" h="100%">
-                <VStack gap={3}>
-                  <Spinner size="lg" color="blue.500" />
-                  <Text fontSize="sm" color="var(--color-muted)">Lade Wachstumsdaten...</Text>
-                </VStack>
+      <SimpleGrid columns={{ base: 1, lg: 2 }} gap={6} mb={8}>
+        {/* Customer Growth Chart */}
+        <Card.Root 
+          bg="var(--color-surface)"
+          borderWidth="1px"
+          borderColor="var(--color-border)"
+        >
+          <CardHeader>
+            <Flex justify="space-between" align="center" flexWrap="wrap" gap={3}>
+              <VStack align="start" gap={0}>
+                <Heading size="md" color="var(--color-text)">Kundenwachstum</Heading>
+                <Text fontSize="sm" color="var(--color-muted)">Neue Kunden vs. kumulativ</Text>
+              </VStack>
+              <Flex align="center" gap={2}>
+                <Text fontSize="sm" fontWeight="medium" color="var(--color-muted)">Zeitraum:</Text>
+                <SimpleSelect value={custDays} onChange={setCustDays} options={dayOptions} />
               </Flex>
-            ) : (
-              <ResponsiveContainer width="100%" height="100%">
-                <ComposedChart data={custSeries} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="custNew" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#6366f1" stopOpacity={0.8} />
-                      <stop offset="95%" stopColor="#6366f1" stopOpacity={0.1} />
-                    </linearGradient>
-                  </defs>
-                  <XAxis dataKey="date" tick={{ fontSize: 12, fill: 'var(--color-muted)' }} tickLine={false} axisLine={false} />
-                  <YAxis tick={{ fontSize: 12, fill: 'var(--color-muted)' }} tickLine={false} axisLine={false} />
-                  <ReTooltip content={<GrowthTooltip />} cursor={{ stroke: 'rgba(255,255,255,0.12)', strokeWidth: 1 }} />
-                  <Legend wrapperStyle={{ color: 'var(--color-muted)' }} iconType="plainline" formatter={(v: any) => <span style={{ color: 'var(--color-muted)' }}>{v}</span>} />
-                  <Area type="monotone" dataKey="newCustomers" name="Neue Kunden" stroke="#6366f1" fillOpacity={1} fill="url(#custNew)" dot={false} activeDot={{ r: 4, stroke: '#6366f1', strokeWidth: 2 }} />
-                  <Line type="monotone" dataKey="cumulative" name="Kumulativ" stroke="#10b981" strokeWidth={2} dot={false} activeDot={{ r: 4, stroke: '#10b981', strokeWidth: 2 }} />
-                </ComposedChart>
-              </ResponsiveContainer>
-            )}
-          </Box>
-        </CardBody>
-      </Card.Root>
+            </Flex>
+          </CardHeader>
+          <CardBody>
+            <Box height={320}>
+              {custLoading ? (
+                <Flex justify="center" align="center" h="100%">
+                  <VStack gap={3}>
+                    <Spinner size="lg" color="blue.500" />
+                    <Text fontSize="sm" color="var(--color-muted)">Lade Wachstumsdaten...</Text>
+                  </VStack>
+                </Flex>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <ComposedChart data={custSeries} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="custNew" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#6366f1" stopOpacity={0.8} />
+                        <stop offset="95%" stopColor="#6366f1" stopOpacity={0.1} />
+                      </linearGradient>
+                    </defs>
+                    <XAxis dataKey="date" tick={{ fontSize: 12, fill: 'var(--color-muted)' }} tickLine={false} axisLine={false} />
+                    <YAxis tick={{ fontSize: 12, fill: 'var(--color-muted)' }} tickLine={false} axisLine={false} />
+                    <ReTooltip content={<GrowthTooltip />} cursor={{ stroke: 'rgba(255,255,255,0.12)', strokeWidth: 1 }} />
+                    <Legend wrapperStyle={{ color: 'var(--color-muted)' }} iconType="plainline" formatter={(v: any) => <span style={{ color: 'var(--color-muted)' }}>{v}</span>} />
+                    <Area type="monotone" dataKey="newCustomers" name="Neue Kunden" stroke="#6366f1" fillOpacity={1} fill="url(#custNew)" dot={false} activeDot={{ r: 4, stroke: '#6366f1', strokeWidth: 2 }} />
+                    <Line type="monotone" dataKey="cumulative" name="Kumulativ" stroke="#10b981" strokeWidth={2} dot={false} activeDot={{ r: 4, stroke: '#10b981', strokeWidth: 2 }} />
+                  </ComposedChart>
+                </ResponsiveContainer>
+              )}
+            </Box>
+          </CardBody>
+        </Card.Root>
+
+        {/* Lead Growth Chart */}
+        <Card.Root 
+          bg="var(--color-surface)"
+          borderWidth="1px"
+          borderColor="var(--color-border)"
+        >
+          <CardHeader>
+            <Flex justify="space-between" align="center" flexWrap="wrap" gap={3}>
+              <VStack align="start" gap={0}>
+                <Heading size="md" color="var(--color-text)">Lead-Wachstum</Heading>
+                <Text fontSize="sm" color="var(--color-muted)">Neue Leads von allen Affiliates</Text>
+              </VStack>
+              <Flex align="center" gap={2}>
+                <Text fontSize="sm" fontWeight="medium" color="var(--color-muted)">Zeitraum:</Text>
+                <SimpleSelect value={leadDays} onChange={setLeadDays} options={dayOptions} />
+              </Flex>
+            </Flex>
+          </CardHeader>
+          <CardBody>
+            <Box height={320}>
+              {leadLoading ? (
+                <Flex justify="center" align="center" h="100%">
+                  <VStack gap={3}>
+                    <Spinner size="lg" color="teal.500" />
+                    <Text fontSize="sm" color="var(--color-muted)">Lade Lead-Daten...</Text>
+                  </VStack>
+                </Flex>
+              ) : leadGrowth && leadGrowth.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <ComposedChart data={leadGrowth} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="leadNew" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#14b8a6" stopOpacity={0.8} />
+                        <stop offset="95%" stopColor="#14b8a6" stopOpacity={0.1} />
+                      </linearGradient>
+                    </defs>
+                    <XAxis dataKey="date" tick={{ fontSize: 12, fill: 'var(--color-muted)' }} tickLine={false} axisLine={false} />
+                    <YAxis tick={{ fontSize: 12, fill: 'var(--color-muted)' }} tickLine={false} axisLine={false} />
+                    <ReTooltip content={<GrowthTooltip />} cursor={{ stroke: 'rgba(255,255,255,0.12)', strokeWidth: 1 }} />
+                    <Legend wrapperStyle={{ color: 'var(--color-muted)' }} iconType="plainline" formatter={(v: any) => <span style={{ color: 'var(--color-muted)' }}>{v}</span>} />
+                    <Area type="monotone" dataKey="newLeads" name="Neue Leads" stroke="#14b8a6" fillOpacity={1} fill="url(#leadNew)" dot={false} activeDot={{ r: 4, stroke: '#14b8a6', strokeWidth: 2 }} />
+                    <Line type="monotone" dataKey="cumulative" name="Kumulativ" stroke="#f59e0b" strokeWidth={2} dot={false} activeDot={{ r: 4, stroke: '#f59e0b', strokeWidth: 2 }} />
+                  </ComposedChart>
+                </ResponsiveContainer>
+              ) : (
+                <Flex justify="center" align="center" h="100%">
+                  <VStack gap={3}>
+                    <Icon as={FiTarget} boxSize={12} color="var(--color-muted)" />
+                    <Text fontSize="sm" color="var(--color-muted)">Keine Lead-Daten verfügbar</Text>
+                    <Text fontSize="xs" color="var(--color-muted)">Leads werden von Affiliates erstellt</Text>
+                  </VStack>
+                </Flex>
+              )}
+            </Box>
+          </CardBody>
+        </Card.Root>
+      </SimpleGrid>
 
       {/* Admin-only: Kundenliste des Coaches */}
       {isAdmin && !!userId && (

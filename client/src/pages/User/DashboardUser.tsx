@@ -71,6 +71,8 @@ export default function Dashboard() {
   const [journalLoading, setJournalLoading] = useState(false);
   const [newCallNotes, setNewCallNotes] = useState("");
   const [newPlanNotes, setNewPlanNotes] = useState("");
+  const [dailyActivity, setDailyActivity] = useState<any>(null);
+  const [dailyActivityLoading, setDailyActivityLoading] = useState(false);
 
   // Helper function to check if daily check is completed today
   const isDailyCheckCompletedToday = () => {
@@ -186,6 +188,7 @@ export default function Dashboard() {
   if (userData?.isAffiliate) {
     loadLeadsData();
     loadLeadGrowthData();
+    loadDailyActivity();
   }
   }, [userIdParam, token, userData?.isAffiliate]);
 
@@ -244,6 +247,25 @@ export default function Dashboard() {
     }
   };
 
+  const loadDailyActivity = async () => {
+    const uid = userIdParam == null ? user.id : userIdParam;
+    if (!userData?.isAffiliate) return;
+    
+    try {
+      setDailyActivityLoading(true);
+      const res = await fetch(`http://localhost:3000/leads/dailyActivity/${uid}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setDailyActivity(data);
+      }
+    } catch (error) {
+      console.error("Error loading daily activity:", error);
+    } finally {
+      setDailyActivityLoading(false);
+    }
+  };
 
   // NEW: Create manual flag
   const handleCreateFlag = async () => {
@@ -371,21 +393,74 @@ export default function Dashboard() {
     return (
       <Stack>
         {/* Hero */}
-        <Flex
-          direction="column"
-          gap={3}
-          p={{ base: 5, md: 8 }}
-          rounded="xl"
-          bgGradient="linear(to-r, blue.500, purple.600)"
-          color="white"
+        <Card.Root 
+          overflow="hidden"
+          bg="var(--color-surface)"
+          borderWidth="1px"
+          borderColor="var(--color-border)"
+          position="relative"
         >
-          <Heading size="lg" fontWeight="800">
-            Affiliate Dashboard
-          </Heading>
-          <Text opacity={0.9}>
-            {userData?.name} {userData?.last_name}
-          </Text>
-        </Flex>
+          <Box
+            position="absolute"
+            top={0}
+            left={0}
+            right={0}
+            bottom={0}
+            bgGradient="linear(135deg, rgba(14, 165, 233, 0.1), rgba(99, 102, 241, 0.1))"
+          />
+          <CardBody p={{ base: 6, md: 8 }} position="relative">
+            <Flex direction={{ base: "column", md: "row" }} justify="space-between" align={{ md: "center" }} gap={4}>
+              <VStack align="start" gap={2}>
+                <Flex align="center" gap={3}>
+                  <Flex 
+                    w={12} h={12} 
+                    align="center" justify="center" 
+                    rounded="full" 
+                    bg="blue.500"
+                    color="white"
+                    fontSize="lg"
+                    fontWeight="bold"
+                  >
+                    {userData?.name?.charAt(0)}{userData?.last_name?.charAt(0)}
+                  </Flex>
+                  <VStack align="start" gap={0}>
+                    <Heading size="lg" color="var(--color-text)">
+                      {userIdParam == null ? "Willkommen zurück," : "Profil von "} {userData?.name}
+                    </Heading>
+                    <Text color="var(--color-muted)" fontSize="sm">
+                      {userData?.email}
+                    </Text>
+                  </VStack>
+                </Flex>
+                
+                <Flex wrap="wrap" gap={2}>
+                  {userData?.isDeleted && (
+                    <Badge colorScheme="red" variant="subtle">
+                      Deaktiviert
+                    </Badge>
+                  )}
+                  {currentAbsence && (
+                    <Badge colorScheme="yellow" variant="subtle">
+                      Abwesend: {currentAbsence.type}
+                    </Badge>
+                  )}
+                  <Badge colorScheme="blue" variant="subtle">
+                    Affiliate
+                  </Badge>
+                </Flex>
+              </VStack>
+              
+              <VStack align={{ base: "start", md: "end" }} gap={2}>
+                <Text fontSize="sm" color="var(--color-muted)">
+                  {guarantee.text}
+                </Text>
+                <Text fontSize="xs" color="var(--color-muted)">
+                  Letzter Login: {new Date().toLocaleDateString('de-DE')}
+                </Text>
+              </VStack>
+            </Flex>
+          </CardBody>
+        </Card.Root>
 
         {/* KPIs */}
         <SimpleGrid columns={{ base: 1, sm: 2, lg: 3 }} gap={4} mt={4}>
@@ -425,6 +500,97 @@ export default function Dashboard() {
             </CardBody>
           </Card.Root>
         </SimpleGrid>
+
+        {/* Daily Activity Overview */}
+        {dailyActivityLoading ? (
+          <Flex align="center" justify="center" py={8} mt={4}>
+            <Spinner size="md" />
+          </Flex>
+        ) : dailyActivity && (
+          <Card.Root mt={4} bg="var(--color-surface)" borderWidth="1px" borderColor="var(--color-border)">
+            <CardHeader>
+              <Heading size="md">Heute's Lead Aktivitäten</Heading>
+              <Text color="var(--color-muted)" fontSize="sm">
+                Übersicht der heutigen Pipeline-Status
+              </Text>
+            </CardHeader>
+            <CardBody>
+              <SimpleGrid columns={{ base: 2, sm: 3, lg: 6 }} gap={4}>
+                <Card.Root bg="var(--color-surface)" borderWidth="1px" borderColor="var(--color-border)">
+                  <CardBody>
+                    <Flex align="center" justify="space-between">
+                      <Flex direction="column">
+                        <Text fontSize="sm" color="var(--color-muted)">Neue Leads</Text>
+                        <Heading size="lg">{dailyActivity.today?.neue || 0}</Heading>
+                      </Flex>
+                      <Icon as={FiUser} color="blue.500" boxSize={6} />
+                    </Flex>
+                  </CardBody>
+                </Card.Root>
+                
+                <Card.Root bg="var(--color-surface)" borderWidth="1px" borderColor="var(--color-border)">
+                  <CardBody>
+                    <Flex align="center" justify="space-between">
+                      <Flex direction="column">
+                        <Text fontSize="sm" color="var(--color-muted)">Angeschrieben</Text>
+                        <Heading size="lg">{dailyActivity.today?.angeschrieben || 0}</Heading>
+                      </Flex>
+                      <Icon as={FiFlag} color="green.500" boxSize={6} />
+                    </Flex>
+                  </CardBody>
+                </Card.Root>
+                
+                <Card.Root bg="var(--color-surface)" borderWidth="1px" borderColor="var(--color-border)">
+                  <CardBody>
+                    <Flex align="center" justify="space-between">
+                      <Flex direction="column">
+                        <Text fontSize="sm" color="var(--color-muted)">Antworten</Text>
+                        <Heading size="lg">{dailyActivity.today?.antwortErhalten || 0}</Heading>
+                      </Flex>
+                      <Icon as={FiTrendingUp} color="teal.500" boxSize={6} />
+                    </Flex>
+                  </CardBody>
+                </Card.Root>
+                
+                <Card.Root bg="var(--color-surface)" borderWidth="1px" borderColor="var(--color-border)">
+                  <CardBody>
+                    <Flex align="center" justify="space-between">
+                      <Flex direction="column">
+                        <Text fontSize="sm" color="var(--color-muted)">Setting Calls</Text>
+                        <Heading size="lg">{dailyActivity.today?.settingCall || 0}</Heading>
+                      </Flex>
+                      <Icon as={FiCalendar} color="purple.500" boxSize={6} />
+                    </Flex>
+                  </CardBody>
+                </Card.Root>
+                
+                <Card.Root bg="var(--color-surface)" borderWidth="1px" borderColor="var(--color-border)">
+                  <CardBody>
+                    <Flex align="center" justify="space-between">
+                      <Flex direction="column">
+                        <Text fontSize="sm" color="var(--color-muted)">Closing Calls</Text>
+                        <Heading size="lg">{dailyActivity.today?.closingCall || 0}</Heading>
+                      </Flex>
+                      <Icon as={FiShield} color="cyan.500" boxSize={6} />
+                    </Flex>
+                  </CardBody>
+                </Card.Root>
+                
+                <Card.Root bg="var(--color-surface)" borderWidth="1px" borderColor="var(--color-border)">
+                  <CardBody>
+                    <Flex align="center" justify="space-between">
+                      <Flex direction="column">
+                        <Text fontSize="sm" color="var(--color-muted)">Deals Closed</Text>
+                        <Heading size="lg">{dailyActivity.today?.dealsClosed || 0}</Heading>
+                      </Flex>
+                      <Icon as={FiTrendingUp} color="green.500" boxSize={6} />
+                    </Flex>
+                  </CardBody>
+                </Card.Root>
+              </SimpleGrid>
+            </CardBody>
+          </Card.Root>
+        )}
 
         {/* Main Content */}
         <SimpleGrid columns={{ base: 1, xl: 2 }} gap={4} mt={4}>
