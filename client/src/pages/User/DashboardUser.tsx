@@ -643,8 +643,8 @@ export default function Dashboard() {
                               borderRadius: 6,
                               color: 'var(--color-text)',
                             }}
-                            labelFormatter={(label) => `Datum: ${label}`}
-                            formatter={(value, name) => [value, name === 'newLeads' ? 'Neue Leads' : 'Kumulativ']}
+                            labelFormatter={(label: any) => `Datum: ${label}`}
+                            formatter={(value: any, name: any) => [value, name === 'newLeads' ? 'Neue Leads' : 'Kumulativ']}
                           />
                           <Area 
                             type="monotone" 
@@ -1065,8 +1065,8 @@ export default function Dashboard() {
                                 borderRadius: 6,
                                 color: 'var(--color-text)',
                               }}
-                              labelFormatter={(label) => `Datum: ${label}`}
-                              formatter={(value, name) => [value, name === 'newLeads' ? 'Neue Leads' : 'Kumulativ']}
+                              labelFormatter={(label: any) => `Datum: ${label}`}
+                              formatter={(value: any, name: any) => [value, name === 'newLeads' ? 'Neue Leads' : 'Kumulativ']}
                             />
                             <Area 
                               type="monotone" 

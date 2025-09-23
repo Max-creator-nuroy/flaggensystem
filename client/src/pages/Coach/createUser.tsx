@@ -5,7 +5,6 @@ import {
   Flex,
   Heading,
   Input,
-  Stack,
   Text,
   Checkbox,
   Card,
@@ -17,7 +16,6 @@ import {
   FieldLabel,
   SimpleGrid,
   Badge,
-  Separator,
 } from "@chakra-ui/react";
 import { FiUserPlus, FiUser, FiMail, FiPhone, FiUsers, FiLayers } from "react-icons/fi";
 import React, { useEffect, useState } from "react";
