@@ -50,7 +50,7 @@ export const handleLeadUpsert = async (req: Request, res: Response) => {
     console.log(`[${reqId}] Incoming body:`, req.body);
 
     if (!Telefonnummer ) {
-      console.warn(`[${reqId}] ❌ Missing Telefonnummer`);
+      console.warn(`[${reqId}] ❌ Missing Telefonnummer 1`);
       return res
         .status(400)
         .json({ error: "Telefonnummer oder E-Mail erforderlich." });
