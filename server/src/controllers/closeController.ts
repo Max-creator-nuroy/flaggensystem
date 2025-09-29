@@ -74,7 +74,7 @@ export const handleLeadUpsert = async (req: Request, res: Response) => {
     console.log(`[${reqId}] Looking up internal user by email`, affiliate_Email);
     const internalUser = await prisma.user.findUnique({
       where: { email: affiliate_Email },
-    });
+    }); 
 
     if (!internalUser) {
       console.warn(`[${reqId}] ❌ Internal user not found for`, affiliate_Email);
