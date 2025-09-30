@@ -71,8 +71,6 @@ export default function Dashboard() {
   const [journalLoading, setJournalLoading] = useState(false);
   const [newCallNotes, setNewCallNotes] = useState("");
   const [newPlanNotes, setNewPlanNotes] = useState("");
-  const [dailyActivity, setDailyActivity] = useState<any>(null);
-  const [dailyActivityLoading, setDailyActivityLoading] = useState(false);
 
   // Helper function to check if daily check is completed today
   const isDailyCheckCompletedToday = () => {
@@ -188,7 +186,6 @@ export default function Dashboard() {
   if (userData?.isAffiliate) {
     loadLeadsData();
     loadLeadGrowthData();
-    loadDailyActivity();
   }
   }, [userIdParam, token, userData?.isAffiliate]);
 
@@ -247,25 +244,6 @@ export default function Dashboard() {
     }
   };
 
-  const loadDailyActivity = async () => {
-    const uid = userIdParam == null ? user.id : userIdParam;
-    if (!userData?.isAffiliate) return;
-    
-    try {
-      setDailyActivityLoading(true);
-      const res = await fetch(`http://localhost:3000/leads/dailyActivity/${uid}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setDailyActivity(data);
-      }
-    } catch (error) {
-      console.error("Error loading daily activity:", error);
-    } finally {
-      setDailyActivityLoading(false);
-    }
-  };
 
   // NEW: Create manual flag
   const handleCreateFlag = async () => {
