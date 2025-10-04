@@ -405,7 +405,7 @@ const getAvailableFlags = async (userId: string, color: FlagColor) => {
 
 export const checkMissedDailyChecks = async (req: Request, res: Response) => {
   try {
-    const users = await prisma.user.findMany({ where: { isCustomer: true } });
+    const users = await prisma.user.findMany({ where: { isCustomer: true, isActive: true } });
 
     for (const user of users) {
       // Hole alle vorhandenen DailyChecks (z.B. der letzten 30 Tage)

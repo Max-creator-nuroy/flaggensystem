@@ -23,6 +23,7 @@ model User {
   mobileNumber String?
   role         Role
   isCustomer   Boolean?  // Kennzeichnet echte Kunden. Flag statt zusätzlicher Rolle, damit Affiliate + Kunde kombinierbar.
+  isActive     Boolean   @default(false) // Kunden sind standardmäßig deaktiviert
   isDeleted    Boolean   @default(false) // Soft-delete / Deaktivierung
 
   // 1:1- oder m:1-Relation zur Phase als Kunde

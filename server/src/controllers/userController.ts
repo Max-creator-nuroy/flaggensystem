@@ -164,6 +164,7 @@ export const createUser = async (req: Request, res: Response) => {
         role: "CUSTOMER",
         isAffiliate: isAffiliate != null ? isAffiliate : false,
         isCustomer: isCustomer != null ? isCustomer : false,
+        isActive: false, // Neue Kunden sind standardmäßig deaktiviert
         phaseId
       },
     });
@@ -263,6 +264,7 @@ export const updateUser = async (req: Request, res: Response) => {
     name,
     last_name,
     isAffiliate,
+    isActive,
     mobileNumber,
     role,
     coachRules,
@@ -279,6 +281,7 @@ export const updateUser = async (req: Request, res: Response) => {
         ...(name && { name }),
         ...(last_name && { last_name }),
         ...(typeof isAffiliate !== "undefined" && { isAffiliate }),
+        ...(typeof isActive !== "undefined" && { isActive }),
         ...(mobileNumber && { mobileNumber }),
         ...(role && { role }),
         ...(coachRules && { coachRules }),
@@ -354,6 +357,7 @@ export const getCustomersByCoach = async (req: Request, res: Response) => {
             role: true,
             isAffiliate: true,
             isCustomer: true,
+            isActive: true,
             isDeleted: true,
             flags: {
               include: {

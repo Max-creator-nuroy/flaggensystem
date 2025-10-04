@@ -175,8 +175,8 @@ export const handleLeadUpsert = async (req: Request, res: Response) => {
         console.log(`[${reqId}] No existing customer user → creating new customer user`);
         // Generate unique email for login since leads don't have email
         const uniqueEmail = cleanTelefonnummer 
-          ? `customer+${cleanTelefonnummer.replace(/[^0-9]/g, '')}@flaggensystem.local`
-          : `customer+${Date.now()}@flaggensystem.local`;
+          ? `${cleanTelefonnummer.replace(/[^0-9]/g, '')}@flaggensystem.local`
+          : `${Date.now()}@flaggensystem.local`;
         
         customerUser = await prisma.user.create({
           data: { 

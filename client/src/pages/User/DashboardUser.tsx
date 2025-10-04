@@ -61,6 +61,7 @@ export default function Dashboard() {
   const [comment, setComment] = useState<string>("");
   const [isAffiliate, setIsAffiliate] = useState(!!userData?.isAffiliate);
   const [isCustomer, setIsCustomer] = useState(!!userData?.isCustomer);
+  const [isActive, setIsActive] = useState(!!userData?.isActive);
   const [absenceRequests, setAbsenceRequests] = useState<any[]>([]);
   const [totalLeads, setTotalLeads] = useState(0);
   const [leadsLoading, setLeadsLoading] = useState(false);
@@ -147,6 +148,7 @@ export default function Dashboard() {
         setSelectedPhaseId(data.phaseId);
         setIsAffiliate(data.isAffiliate);
         setIsCustomer(data.isCustomer);
+        setIsActive(data.isActive);
       });
 
     fetch(`http://localhost:3000/users/getCoachByUser/${uid}`, {
@@ -310,6 +312,27 @@ export default function Dashboard() {
     } catch (e) {
       toaster.error({ title: "Netzwerkfehler" });
       setIsAffiliate(!checked);
+    }
+  };
+
+  // NEW: Active toggle
+  const handleActiveChange = async (e: any) => {
+    const checked = e?.checked ?? e?.target?.checked ?? !!e;
+    setIsActive(checked);
+    if (!userIdParam) return;
+    try {
+      const res = await fetch(`http://localhost:3000/users/updateUser/${userIdParam}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ isActive: checked }),
+      });
+      if (!res.ok) {
+        toaster.error({ title: "Aktivierung fehlgeschlagen" });
+        setIsActive(!checked);
+      }
+    } catch (e) {
+      toaster.error({ title: "Netzwerkfehler" });
+      setIsActive(!checked);
     }
   };
 
@@ -628,6 +651,16 @@ export default function Dashboard() {
                     Deaktiviert
                   </Badge>
                 )}
+                {!isActive && userData?.isCustomer && (
+                  <Badge colorScheme="red" variant="subtle">
+                    Inaktiv
+                  </Badge>
+                )}
+                {isActive && userData?.isCustomer && (
+                  <Badge colorScheme="green" variant="subtle">
+                    Aktiv
+                  </Badge>
+                )}
                 {currentAbsence && (
                   <Badge colorScheme="yellow" variant="subtle">
                     Abwesend: {currentAbsence.type}
@@ -647,6 +680,18 @@ export default function Dashboard() {
             </VStack>
             
             <VStack align={{ base: "start", md: "end" }} gap={2}>
+              {userIdParam && (user?.role === 'COACH' || user?.role === 'ADMIN') && userData?.isCustomer && (
+                <Box>
+                  <Flex align="center" gap={3}>
+                    <Text fontWeight="bold">Kunde aktiv</Text>
+                    <Switch.Root checked={isActive} onCheckedChange={handleActiveChange} colorScheme={isActive ? "green" : "red"} size="md">
+                      <Switch.HiddenInput />
+                      <Switch.Control><Switch.Thumb /></Switch.Control>
+                      <Switch.Label />
+                    </Switch.Root>
+                  </Flex>
+                </Box>
+              )}
               <Text fontSize="sm" color="var(--color-muted)">
                 {guarantee.text}
               </Text>
@@ -1293,6 +1338,16 @@ export default function Dashboard() {
                       <Switch.Label />
                     </Switch.Root>
                   </Flex>
+                  {userData?.isCustomer && (
+                    <Flex align="center" gap={3} mt={4}>
+                      <Text fontWeight="bold">Aktiv</Text>
+                      <Switch.Root checked={isActive} onCheckedChange={handleActiveChange} colorScheme={isActive ? "green" : "red"} size="md">
+                        <Switch.HiddenInput />
+                        <Switch.Control><Switch.Thumb /></Switch.Control>
+                        <Switch.Label />
+                      </Switch.Root>
+                    </Flex>
+                  )}
                 </>
               ) : null}
             </CardBody>
